@@ -566,13 +566,7 @@ function filterSections(query) {
   searchCount.textContent = count + "/" + els.length + " sections";
 }
 
-btnSearch?.addEventListener("click", toggleSearch);
-searchInput?.addEventListener("input", function() {
-  if (this.value.trim()) filterSections(this.value); else clearSearch();
-});
-btnSearchClose?.addEventListener("click", function() {
-  if (searchActive) toggleSearch();
-});
+
 
 // Hidden CSS for search filtering
 (function() {
@@ -614,14 +608,6 @@ function renderTOC() {
   });
 }
 
-btnToc?.addEventListener("click", function() {
-  renderTOC();
-  tocModal.classList.remove("hidden");
-});
-btnCloseToc?.addEventListener("click", function() { tocModal.classList.add("hidden"); });
-tocModal?.addEventListener("click", function(e) {
-  if (e.target === tocModal) tocModal.classList.add("hidden");
-});
 
 // ============================================================
 // SHARE
@@ -681,6 +667,22 @@ async function init() {
       isOwner = hasGH();
       siteLoading.classList.add("hidden");
       renderSite();
+
+      // Bind search & TOC events
+      if (btnSearch) btnSearch.addEventListener("click", toggleSearch);
+      if (searchInput) searchInput.addEventListener("input", function() {
+        if (this.value.trim()) filterSections(this.value); else clearSearch();
+      });
+      if (btnSearchClose) btnSearchClose.addEventListener("click", function() {
+        if (searchActive) toggleSearch();
+      });
+      if (btnToc) btnToc.addEventListener("click", function() {
+        renderTOC(); tocModal.classList.remove("hidden");
+      });
+      if (btnCloseToc) btnCloseToc.addEventListener("click", function() { tocModal.classList.add("hidden"); });
+      if (tocModal) tocModal.addEventListener("click", function(e) {
+        if (e.target === tocModal) tocModal.classList.add("hidden");
+      });
     } catch (e) {
       siteLoading.classList.add("hidden");
       siteError.classList.remove("hidden");
