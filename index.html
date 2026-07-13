@@ -3,39 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WT资料修改库</title>
+  <title>永久存储 · PermaStore</title>
   <link rel="stylesheet" href="styles.css">
-  
 </head>
 <body>
 
 <div class="app" id="app">
 
-  <!-- ========== 首页 ========== -->
+  <!-- ============ 首页 ============ -->
   <div id="page-home" class="page">
     <div class="home-center">
       <div class="home-logo">📦</div>
-      <h1 class="home-title">WT资料修改库</h1>
+      <h1 class="home-title">永久存储</h1>
       <p class="home-desc">分区管理你的文字和图片，生成永久链接随时分享</p>
+
       <div id="setup-banner" class="setup-banner"></div>
-      <button id="btn-create-site" class="btn btn-primary btn-large" disabled>＋ 创建新站点</button>
-      <div class="home-owned" id="owned-list-home"></div>
+
+      <button id="btn-create-site" class="btn btn-primary btn-large" disabled>
+        ＋ 创建新站点
+      </button>
+
+      <div id="owned-list-home" class="home-owned"></div>
+
       <div class="home-help">
         <p>💡 需要先配置 <a href="#" id="btn-settings-home">GitHub Token</a> 才能创建站点</p>
       </div>
     </div>
   </div>
 
-  <!-- ========== 站点页 ========== -->
+  <!-- ============ 站点页 ============ -->
   <div id="page-site" class="page hidden">
     <header class="site-header">
       <div class="site-header-left">
         <a href="/" class="site-logo">📦</a>
-        <input type="text" id="site-title" class="site-title-input" placeholder="站点名称"><button id="btn-site-lock" class="btn btn-xs btn-secondary" title="站点锁定/解锁">🔓</button>
+        <input type="text" id="site-title" class="site-title-input"
+               placeholder="站点名称" maxlength="60">
+        <button id="btn-site-lock" class="btn btn-xs btn-secondary"
+                title="站点锁定 / 解锁">🔓</button>
       </div>
       <div class="site-header-right">
-        <button id="btn-search" class="btn btn-secondary btn-icon" title="搜索">🔍</button>
-        <button id="btn-toc" class="btn btn-secondary btn-icon" title="目录">📋</button>
+        <button id="btn-search" class="btn btn-secondary btn-icon btn-icon-large"
+                title="搜索">🔍</button>
+        <button id="btn-toc" class="btn btn-secondary btn-icon btn-icon-large"
+                title="目录">📋</button>
         <button id="btn-add-section" class="btn btn-primary btn-sm">＋ 分区</button>
         <button id="btn-share" class="btn btn-secondary btn-sm">🔗 分享</button>
         <button id="btn-settings" class="btn btn-secondary btn-sm" title="设置">⚙️</button>
@@ -46,30 +56,84 @@
     <!-- 搜索栏 -->
     <div id="search-bar" class="search-bar hidden">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" class="search-input" placeholder="搜索分区名称...">
+      <input type="text" id="search-input" class="search-input"
+             placeholder="搜索分区或区域名称…" autocomplete="off">
       <button id="btn-search-close" class="btn btn-xs btn-secondary">✕</button>
       <span id="search-count" class="search-count"></span>
     </div>
 
     <div id="site-loading" class="site-loading">
       <div class="spinner"></div>
-      <p>加载中...</p>
+      <p>加载中…</p>
     </div>
 
     <div id="site-error" class="site-error hidden">
       <h2>😕 站点不存在</h2>
-      <p>链接可能已失效。</p>
-      <a href="/" class="btn btn-primary">创建新站点</a>
+      <p>链接可能已失效，或 Gist 已被删除。</p>
+      <a href="/" class="btn btn-primary">返回首页</a>
     </div>
 
     <div id="sections-container" class="sections-container hidden"></div>
 
     <div id="site-footer-bar" class="site-footer-bar hidden">
-      <button id="btn-add-section-bottom" class="btn btn-secondary">＋ 添加新分区</button>
+      <button id="btn-add-section-bottom" class="btn btn-secondary">
+        ＋ 添加新分区
+      </button>
     </div>
   </div>
 
-  <!-- ========== 目录弹窗 ========== -->
+  <!-- ============ 设置弹窗 ============ -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚙️ GitHub 配置</h3>
+        <button class="modal-close" id="btn-close-settings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          创建一个 <strong>GitHub Personal Access Token</strong>，
+          只需 <strong>gist</strong> 权限。
+        </p>
+        <ol class="modal-steps">
+          <li>打开
+            <a href="https://github.com/settings/tokens/new?description=perma-store&scopes=gist"
+               target="_blank">github.com/settings/tokens/new</a>
+          </li>
+          <li>勾选 <code>gist</code>（只需这一个权限）</li>
+          <li>点 <strong>Generate token</strong>，复制那串密钥</li>
+        </ol>
+        <label class="modal-label">GitHub Token</label>
+        <input type="password" id="token-input" class="modal-input"
+               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" spellcheck="false">
+        <div id="token-status" class="token-status"></div>
+        <div class="modal-buttons">
+          <button id="btn-save-token" class="btn btn-primary">保存</button>
+          <button id="btn-clear-token" class="btn btn-danger btn-sm">清除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 分享弹窗 ============ -->
+  <div id="share-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🔗 分享此站点</h3>
+        <button class="modal-close" id="btn-close-share">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label">永久链接</label>
+        <div class="link-box">
+          <input type="text" id="share-link" readonly>
+          <button id="btn-copy-link" class="btn btn-sm">复制</button>
+        </div>
+        <label class="modal-label">扫二维码</label>
+        <div class="qr-wrap" id="qrcode"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 目录弹窗 ============ -->
   <div id="toc-modal" class="modal-backdrop hidden">
     <div class="modal toc-modal">
       <div class="modal-header">
@@ -83,55 +147,11 @@
     </div>
   </div>
 
-  <!-- ========== 设置弹窗 ========== -->
-  <div id="settings-modal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>⚙️ GitHub 配置</h3>
-        <button class="modal-close" id="btn-close-settings">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="modal-desc">创建一个 <strong>Gitee 私人令牌</strong>，只需 <strong>snippets</strong>（代码片段）权限</p>
-        <ol class="modal-steps">
-          <li>打开 <a href="https://gitee.com/profile/personal_access_tokens" target="_blank">gitee.com/profile/personal_access_tokens</a></li>
-          <li>Note 填 <code>perma-store</code></li>
-          <li>勾选 <code>snippets</code>（只需这一个权限）</li>
-          <li>点 <strong>生成令牌</strong>，复制那串密钥</li>
-        </ol>
-        <label class="modal-label">Token</label>
-        <input type="text" id="token-input" class="modal-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-        <div id="token-status" class="token-status"></div>
-        <div class="modal-buttons">
-          <button id="btn-save-token" class="btn btn-primary">保存</button>
-          <button id="btn-clear-token" class="btn btn-danger btn-sm">清除</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== 分享弹窗 ========== -->
-  <div id="share-modal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>🔗 分享此站点</h3>
-        <button class="modal-close" id="btn-close-modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <label class="modal-label">链接</label>
-        <div class="link-box">
-          <input type="text" id="share-link" readonly>
-          <button id="btn-copy-link" class="btn btn-sm">复制</button>
-        </div>
-        <label class="modal-label">扫二维码</label>
-        <div class="qr-wrap" id="qrcode"></div>
-      </div>
-    </div>
-  </div>
-
   <input type="file" id="file-input" accept="image/*" multiple hidden>
   <div id="toast" class="toast hidden"></div>
 
 </div>
+
 <script src="app.js"></script>
 </body>
 </html>

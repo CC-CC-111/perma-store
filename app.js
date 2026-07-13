@@ -1,130 +1,89 @@
-﻿// ============================================================
-// 永久存储 v3 — 基于 GitHub Gist 存储
-// 不需要服务器，前端直接调 Gitee API
-// ============================================================
+﻿/* PermaStore v2 — 永久存储
+   基于 GitHub Gist 存储，纯前端，可部署到 GitHub Pages */
 
-// ---- Gitee 配置 ----
-const GITEE_API = "https://gitee.com/api/v5";
+// ===== 配置 =====
+const GH_API = "https://api.github.com";
+const TK_PREFIX = "pm_";
 
-function getGH(prefix = "") {
-  // 读取 localStorage 中的 Gitee Token
-  return localStorage.getItem("gt_" + prefix + "token") || "";
-}
-function setGH(val, prefix = "") {
-  localStorage.setItem("gt_" + prefix + "token", val);
-}
-function hasGH(prefix = "") {
-  return getGH(prefix).length > 0;
+function getToken() { return localStorage.getItem(TK_PREFIX + "token") || ""; }
+function setToken(v) { localStorage.setItem(TK_PREFIX + "token", v); }
+function hasToken() { return getToken().length > 0; }
+
+let _idc = Date.now();
+function uid() { return (_idc++).toString(36); }
+
+// ===== DOM 快捷引用 =====
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+const pageHome = $("#page-home"), pageSite = $("#page-site");
+const btnCreateSite = $("#btn-create-site");
+const btnAddSection = $("#btn-add-section"), btnAddSectionBottom = $("#btn-add-section-bottom");
+const btnShare = $("#btn-share"), btnSettings = $("#btn-settings");
+const sectionsContainer = $("#sections-container");
+const siteLoading = $("#site-loading"), siteError = $("#site-error");
+const shareModal = $("#share-modal"), shareLink = $("#share-link"), qrContainer = $("#qrcode");
+const btnCloseShare = $("#btn-close-share"), btnCopyLink = $("#btn-copy-link");
+const fileInput = $("#file-input"), toast = $("#toast"), saveStatus = $("#save-status");
+const setupBanner = $("#setup-banner"), settingsModal = $("#settings-modal");
+const tokenInput = $("#token-input"), btnSaveToken = $("#btn-save-token"), btnClearToken = $("#btn-clear-token");
+const btnCloseSettings = $("#btn-close-settings"), tokenStatus = $("#token-status");
+const siteTitleInput = $("#site-title");
+const searchBar = $("#search-bar"), searchInput = $("#search-input");
+const btnSearch = $("#btn-search"), btnSearchClose = $("#btn-search-close"), searchCount = $("#search-count");
+const btnToc = $("#btn-toc"), tocModal = $("#toc-modal"), tocList = $("#toc-list");
+const tocEmpty = $("#toc-empty"), btnCloseToc = $("#btn-close-toc");
+const ownedListHome = $("#owned-list-home"), stLock = $("#btn-site-lock");
+
+// ===== 状态 =====
+let site = null, siteId = null, isOwner = false;
+let saveTimer = null, pendingSave = false;
+let searchActive = false, siteUnlocked = false;
+
+// ===== GitHub Gist API =====
+function ghHeaders(extra) {
+  const h = { Accept: "application/vnd.github.v3+json" };
+  const t = getToken();
+  if (t) h.Authorization = "Bearer " + t;
+  return Object.assign(h, extra || {});
 }
 
-// ---- 测试 Token 有效性 ----
-// async function testGiteeToken(token) {
-  try {
-    const r = await fetch(GITEE_API + "/user", {
-      headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github.v3+json" },
-    });
-    if (!r.ok) return { ok: false, msg: "Token 无效（状态码 " + r.status + "）" };
-    const user = await r.json();
-    return { ok: true, user: user.login };
-  } catch (e) {
-    return { ok: false, msg: "网络错误: " + e.message };
-  }
-}
-
-// ---- Gitee API 函数 ----
-async function gistCreate(siteData) {
-  const r = await fetch(GITEE_API + "/gists", {
+async function gistCreate(data) {
+  const r = await fetch(GH_API + "/gists", {
     method: "POST",
-    headers: { "Authorization": "Bearer " + getGH(), "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
+    headers: ghHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
-      description: "Permanent Store - " + new Date().toLocaleString("zh-CN"),
+      description: "PermaStore - " + new Date().toLocaleString("zh-CN"),
       public: true,
-      files: [ { name: "site.json", content: JSON.stringify(siteData) } ]
-    }),
+      files: { "site.json": { content: JSON.stringify(data) } }
+    })
   });
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error("Gitee 创建失败: " + r.status + " " + err.slice(0, 100));
-  }
-  const d = await r.json();
-  return d.id;
+  if (!r.ok) { const e = await r.text(); throw new Error("创建失败: " + r.status + " " + e.slice(0, 120)); }
+  return (await r.json()).id;
 }
 
-async function gistGet(gistId) {
-  const r = await fetch(GITEE_API + "/gists/" + encodeURIComponent(gistId), {
-    headers: { "Accept": "application/vnd.github.v3+json" },
-  });
+async function gistGet(id) {
+  const r = await fetch(GH_API + "/gists/" + encodeURIComponent(id), { headers: ghHeaders() });
   if (!r.ok) throw new Error("获取失败: " + r.status);
   const d = await r.json();
-  const content = d.files && d.files[0] && d.files[0].content;
-  if (!content) throw new Error("内容不存在");
-  return JSON.parse(content);
+  const fk = Object.keys(d.files || {});
+  if (!fk.length) throw new Error("Gist 内容为空");
+  const c = d.files[fk[0]].content;
+  if (!c) throw new Error("Gist 文件为空");
+  return JSON.parse(c);
 }
 
-async function gistUpdate(gistId, siteData) {
-  const r = await fetch(GITEE_API + "/gists/" + encodeURIComponent(gistId), {
+async function gistUpdate(id, data) {
+  const r = await fetch(GH_API + "/gists/" + encodeURIComponent(id), {
     method: "PATCH",
-    headers: { "Authorization": "Bearer " + getGH(), "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
-    body: JSON.stringify({
-      files: [ { name: "site.json", content: JSON.stringify(siteData) } ]
-    }),
+    headers: ghHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ files: { "site.json": { content: JSON.stringify(data) } } })
   });
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error("Gitee 保存失败: " + r.status + " " + err.slice(0, 100));
-  }
+  if (!r.ok) { const e = await r.text(); throw new Error("保存失败: " + r.status + " " + e.slice(0, 120)); }
   return true;
 }
 
-// ---- ID 生成 ----
-let _idCounter = Date.now();
-function uid() { return (_idCounter++).toString(36); }
-
-// ---- DOM ----
-const $ = (s) => document.querySelector(s);
-const pageHome = $("#page-home");
-const pageSite = $("#page-site");
-const btnCreateSite = $("#btn-create-site");
-const btnAddSection = $("#btn-add-section");
-const btnAddSectionBottom = $("#btn-add-section-bottom");
-const btnShare = $("#btn-share");
-const btnSettings = $("#btn-settings");
-const sectionsContainer = $("#sections-container");
-const siteLoading = $("#site-loading");
-const siteError = $("#site-error");
-const shareModal = $("#share-modal");
-const shareLink = $("#share-link");
-const qrContainer = $("#qrcode");
-const btnCloseModal = $("#btn-close-modal");
-const btnCopyLink = $("#btn-copy-link");
-const fileInput = $("#file-input");
-const toast = $("#toast");
-const saveStatus = $("#save-status");
-const setupBanner = $("#setup-banner");
-const tokenInput = $("#token-input");
-const btnSaveToken = $("#btn-save-token");
-const siteTitleInput = $("#site-title");
-const searchBar = $("#search-bar");
-const searchInput = $("#search-input");
-const btnSearch = $("#btn-search");
-const btnSearchClose = $("#btn-search-close");
-const searchCount = $("#search-count");
-const btnToc = $("#btn-toc");
-const tocModal = $("#toc-modal");
-const tocList = $("#toc-list");
-const tocEmpty = $("#toc-empty");
-const btnCloseToc = $("#btn-close-toc");
-const btnTestToken = $("#btn-test-token");
-const tokenStatus = $("#token-status");
-function ghUserEl() { return document.getElementById("gh-user"); }
-const btnClearToken = $("#btn-clear-token");
-const ownedListHome = $("#owned-list-home");
-
-// ---- State ----
-let site = null, siteId = null, isOwner = false;
-let saveTimer = null, pendingSave = false;
-
-// ---- Toast ----
+// ===== UI 基础工具 =====
 let toastTimer = null;
 function showToast(msg) {
   toast.textContent = msg; toast.classList.remove("hidden");
@@ -132,16 +91,11 @@ function showToast(msg) {
   toastTimer = setTimeout(() => toast.classList.add("hidden"), 3000);
 }
 
-// ---- Owned Sites (localStorage) ----
-function getOwned() {
-  try { return JSON.parse(localStorage.getItem("gt_owned") || "[]"); } catch { return []; }
-}
-function addOwned(gistId) {
-  const list = getOwned();
-  if (!list.includes(gistId)) { list.push(gistId); localStorage.setItem("gt_owned", JSON.stringify(list)); }
+function esc(s) {
+  if (!s) return "";
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
-// ---- Save Status ----
 function setSaveStatus(state) {
   saveStatus.className = "save-status";
   if (state === "saved") { saveStatus.textContent = "已保存"; saveStatus.classList.add("saved"); }
@@ -150,330 +104,200 @@ function setSaveStatus(state) {
   else { saveStatus.textContent = ""; }
 }
 
-// ---- Debounced Save ----
 function scheduleSave() {
   if (!siteId || !isOwner) return;
   pendingSave = true; setSaveStatus("saving");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(doSave, 800);
 }
+
 async function doSave() {
   if (!pendingSave) return;
   pendingSave = false;
-  try {
-    await gistUpdate(siteId, site);
-    setSaveStatus("saved");
-  } catch (e) {
-    setSaveStatus("error");
-    console.error("Save:", e);
-  }
+  try { site.updatedAt = Date.now(); await gistUpdate(siteId, site); setSaveStatus("saved"); }
+  catch (e) { setSaveStatus("error"); console.error("Save:", e); }
 }
 
-// ---- 设置界面 ----
-async function initSettings() {
-  const token = getGH();
-  if (token) {
-    btnCreateSite.disabled = false;
-    setupBanner.innerHTML = '<div class="setup-info"><span class="gh-user">Token OK</span><button class="btn btn-xs btn-secondary" id="btn-open-settings">⚙️ 设置</button></div>';
-    var bs = setupBanner.querySelector("#btn-open-settings");
-    if (bs) bs.addEventListener("click", showSettingsModal);
-  } else {
-    setupBanner.innerHTML = '<div class="setup-prompt"><p>🔑 请先配置 Gitee 令牌，才能创建和编辑站点</p><button class="btn btn-primary btn-sm" id="btn-open-settings">配置 Gitee</button></div>';
-    btnCreateSite.disabled = true;
-    var bs = setupBanner.querySelector("#btn-open-settings");
-    if (bs) bs.addEventListener("click", showSettingsModal);
-  }
-  renderSetupBanner();
+// ===== 已拥有站点 =====
+function getOwned() {
+  try { return JSON.parse(localStorage.getItem(TK_PREFIX + "owned") || "[]"); }
+  catch { return []; }
 }
-
+function addOwned(id) {
+  const l = getOwned();
+  if (!l.includes(id)) { l.push(id); localStorage.setItem(TK_PREFIX + "owned", JSON.stringify(l)); }
+}
+function renderOwnedList() {
+  if (!ownedListHome) return;
+  const l = getOwned();
+  if (!l.length) { ownedListHome.innerHTML = ""; return; }
+  ownedListHome.innerHTML = '<h3>📦 我的站点</h3><div id="owned-sites-list">'
+    + l.map(i => '<a href="?id=' + i + '" class="owned-site-btn">📦 ' + i.slice(0, 12) + '…</a>').join("") + '</div>';
+}
+// ===== 首页 Banner =====
 function renderSetupBanner() {
   if (!setupBanner) return;
   setupBanner.innerHTML = "";
-  const token = getGH();
-  if (token) {
-    setupBanner.innerHTML = `
-      <div class="setup-info">
-        <span id="gh-user" class="gh-user">${(ghUserEl() ? ghUserEl().textContent : "") || "已配置"}</span>
-        <button class="btn btn-xs btn-secondary" id="btn-open-settings">⚙️ 设置</button>
-      </div>`;
+  if (getToken()) {
+    setupBanner.innerHTML = '<div class="setup-info"><span class="gh-user">✅ Token 已配置</span><button class="btn btn-xs btn-secondary" id="btn-open-settings">⚙️ 设置</button></div>';
     setupBanner.querySelector("#btn-open-settings")?.addEventListener("click", showSettingsModal);
+    btnCreateSite.disabled = false;
   } else {
-    setupBanner.innerHTML = `
-      <div class="setup-prompt">
-        <p>🔑 请先配置 Gitee 令牌，才能创建和编辑站点</p>
-        <button class="btn btn-primary btn-sm" id="btn-open-settings">配置 Gitee</button>
-      </div>`;
+    setupBanner.innerHTML = '<div class="setup-prompt"><p>🔑 请先配置 GitHub Token</p><button class="btn btn-primary btn-sm" id="btn-open-settings">配置 GitHub</button></div>';
     setupBanner.querySelector("#btn-open-settings")?.addEventListener("click", showSettingsModal);
+    btnCreateSite.disabled = true;
   }
 }
 
 function showSettingsModal() {
-  document.getElementById("settings-modal").classList.remove("hidden");
-  tokenInput.value = getGH();
+  settingsModal.classList.remove("hidden");
+  tokenInput.value = getToken();
   tokenStatus.textContent = "";
 }
 
-$("#btn-close-settings")?.addEventListener("click", () => {
-  document.getElementById("settings-modal").classList.add("hidden");
-});
-
-$("#settings-modal")?.addEventListener("click", (e) => {
-  if (e.target === $("#settings-modal")) {
-    document.getElementById("settings-modal").classList.add("hidden");
-  }
-});
-
-// ---- Editable Site Title ----
-siteTitleInput?.addEventListener("change", function() {
-  if (site && siteId) {
-    site.title = siteTitleInput.value || "WT";
-    scheduleSave();
-  }
-});
-
-btnSaveToken?.addEventListener("click", async () => {
-  const token = tokenInput.value.trim();
-  if (!token) { tokenStatus.textContent = "请输入 Token"; return; }
-  setGH(token);
-  tokenStatus.textContent = "✅ Token 已保存";
-  btnCreateSite.disabled = false;
-  setTimeout(function() {
-    document.getElementById("settings-modal").classList.add("hidden");
-  }, 800);
-});
-
-btnClearToken?.addEventListener("click", () => {
-  setGH("");
-  var _g = ghUserEl(); if(_g) _g.textContent = "";
-  btnCreateSite.disabled = true;
-  document.getElementById("settings-modal").classList.add("hidden");
-  renderSetupBanner();
-  showToast("已清除 Token");
-});
-
-// ============================================================
-// RENDERING (same as before)
-// ============================================================
-
+// ===== 渲染站点 =====
 function renderSite() {
   if (!site) return;
   sectionsContainer.innerHTML = "";
   sectionsContainer.classList.remove("hidden");
-  $("#site-footer-bar").classList.remove("hidden");
+  document.getElementById("site-footer-bar").classList.remove("hidden");
+
+  const hasPw = !!(site.sitePassword && site.sitePassword.length > 0);
+  const lockedState = hasPw && !siteUnlocked;
+  const lockIcon = hasPw ? (lockedState ? "🔒" : "🔓") : "🔓";
 
   site.sections.forEach((sec, si) => {
     const secDiv = document.createElement("div");
     secDiv.className = "section";
     secDiv.dataset.si = si;
 
-    const secHead = document.createElement("div");
-    secHead.className = "section-header";
-    var hasPw = !!(site.sitePassword && site.sitePassword.length > 0);
-    var lockedState = hasPw && !siteUnlocked;
-    var lockIcon = hasPw ? (lockedState ? "🔒" : "🔓") : "🔓";
-    var lockBtn = '<button class="btn btn-sm btn-secondary sec-lock" data-si="' + si + '">' + lockIcon + '</button>';
-    var editHtml = "";
+    const head = document.createElement("div");
+    head.className = "section-header";
+    const lockBtn = `<button class="btn btn-xs btn-secondary sec-lock" data-si="${si}">${lockIcon}</button>`;
+
     if (lockedState) {
-      editHtml = '<span class="section-title-text">' + esc(sec.title) + '</span>'
-        + '<div class="section-actions">'
-        + lockBtn
-        + '<button class="btn btn-sm btn-secondary sec-lock-unlock" data-si="' + si + '">🔓 解锁</button>'
-        + '</div>';
+      head.innerHTML = `<span class="section-title-text">${esc(sec.title || "未命名")}</span><div class="section-actions">${lockBtn}<button class="btn btn-xs btn-secondary sec-unlock" data-si="${si}" title="解锁">🔓 解锁</button></div>`;
     } else {
-      editHtml = '<input class="section-title" value="' + esc(sec.title) + '" placeholder="分区名称" data-si="' + si + '">'
-        + '<div class="section-actions">'
-        + lockBtn
-        + '<button class="btn btn-sm btn-secondary zone-add-text" data-si="' + si + '">＋ 文字区</button>'
-        + '<button class="btn btn-sm btn-secondary zone-add-image" data-si="' + si + '">＋ 图片区</button>'
-        + '<button class="btn btn-sm btn-danger sec-del" data-si="' + si + '" title="删除分区">✕</button>'
-        + '</div>';
+      head.innerHTML = `<input class="section-title" value="${esc(sec.title)}" placeholder="分区名称" data-si="${si}"><div class="section-actions">${lockBtn}<button class="btn btn-xs btn-secondary zone-add-text" data-si="${si}" title="文字区">＋文字</button><button class="btn btn-xs btn-secondary zone-add-image" data-si="${si}" title="图片区">＋图片</button><button class="btn btn-xs btn-danger sec-del" data-si="${si}" title="删除">✕</button></div>`;
     }
-    secHead.innerHTML = editHtml;
-    secDiv.appendChild(secHead);
+    secDiv.appendChild(head);
 
     const zonesDiv = document.createElement("div");
     zonesDiv.className = "section-zones";
-
-    sec.textZones.forEach((tz, tzi) => zonesDiv.appendChild(renderTextZone(si, tzi, tz)));
-    sec.imageZones.forEach((iz, izi) => zonesDiv.appendChild(renderImageZone(si, izi, iz)));
-
+    (sec.textZones || []).forEach((tz, i) => zonesDiv.appendChild(renderTextZone(si, i, tz, lockedState)));
+    (sec.imageZones || []).forEach((iz, i) => zonesDiv.appendChild(renderImageZone(si, i, iz, lockedState)));
     secDiv.appendChild(zonesDiv);
     sectionsContainer.appendChild(secDiv);
   });
 }
 
-function renderTextZone(si, tzi, tz) {
+function renderTextZone(si, tzi, tz, locked) {
   const zone = document.createElement("div");
   zone.className = "zone";
-  zone.innerHTML = `
-    <div class="zone-header">
-      <span class="zone-title-icon">📝</span>
-      <input class="zone-title" value="${esc(tz.title)}" placeholder="文字区名称" data-si="${si}" data-tzi="${tzi}">
-      <div class="zone-actions">
-        <button class="btn btn-xs btn-secondary block-add-btn" data-si="${si}" data-tzi="${tzi}" title="添加文字块">＋</button>
-        <button class="btn btn-xs btn-danger zone-del" data-si="${si}" data-tzi="${tzi}" data-type="text" title="删除此区">✕</button>
-      </div>
-    </div>
-    <div class="zone-body">
-      <div class="blocks-container">
-        ${tz.blocks.map((blk, bi) => `
-          <div class="block" data-si="${si}" data-tzi="${tzi}" data-bi="${bi}">
-            <textarea placeholder="输入文字..." data-si="${si}" data-tzi="${tzi}" data-bi="${bi}">${esc(blk.content)}</textarea>
-            <div class="block-actions">
-              <button class="btn btn-xs btn-secondary block-copy" data-si="${si}" data-tzi="${tzi}" data-bi="${bi}">📋 复制</button>
-              <button class="btn btn-xs btn-danger block-del" data-si="${si}" data-tzi="${tzi}" data-bi="${bi}">✕</button>
-            </div>
-          </div>
-        `).join("")}
-      </div>
-      <div class="block-add-new">
-        <button data-si="${si}" data-tzi="${tzi}">＋ 添加文字</button>
-      </div>
-    </div>
-  `;
+  if (locked) {
+    zone.innerHTML = `<div class="zone-header"><span class="zone-title-icon">📝</span><span class="zone-title" style="font-weight:500;color:#6b7280">${esc(tz.title || "文字区")}</span></div><div class="zone-body">${(tz.blocks || []).map((b, i) => `<div class="block"><div style="padding:12px;font-size:14px;line-height:1.7;white-space:pre-wrap">${esc(b.content)}</div><div class="block-actions"><button class="btn btn-xs btn-secondary block-copy" data-si="${si}" data-tzi="${tzi}" data-bi="${i}">📋复制</button></div></div>`).join("")}</div>`;
+  } else {
+    zone.innerHTML = `<div class="zone-header"><span class="zone-title-icon">📝</span><input class="zone-title" value="${esc(tz.title)}" placeholder="文字区" data-si="${si}" data-tzi="${tzi}"><div class="zone-actions"><button class="btn btn-xs btn-secondary block-add-btn" data-si="${si}" data-tzi="${tzi}" title="添加文字块">＋</button><button class="btn btn-xs btn-danger zone-del" data-si="${si}" data-tzi="${tzi}" data-type="text" title="删除">✕</button></div></div><div class="zone-body"><div class="blocks-container">${(tz.blocks || []).map((b, i) => `<div class="block" data-si="${si}" data-tzi="${tzi}" data-bi="${i}"><textarea placeholder="输入文字..." data-si="${si}" data-tzi="${tzi}" data-bi="${i}">${esc(b.content)}</textarea><div class="block-actions"><button class="btn btn-xs btn-secondary block-copy" data-si="${si}" data-tzi="${tzi}" data-bi="${i}">📋复制</button><button class="btn btn-xs btn-danger block-del" data-si="${si}" data-tzi="${tzi}" data-bi="${i}">✕</button></div></div>`).join("")}</div><div class="block-add-new"><button data-si="${si}" data-tzi="${tzi}">＋添加</button></div></div>`;
+  }
   return zone;
 }
 
-function renderImageZone(si, izi, iz) {
+function renderImageZone(si, izi, iz, locked) {
   const zone = document.createElement("div");
   zone.className = "zone";
-  zone.innerHTML = `
-    <div class="zone-header">
-      <span class="zone-title-icon">🖼️</span>
-      <input class="zone-title" value="${esc(iz.title)}" placeholder="图片区名称" data-si="${si}" data-izi="${izi}">
-      <div class="zone-actions">
-        <button class="btn btn-xs btn-danger zone-del" data-si="${si}" data-izi="${izi}" data-type="image" title="删除此区">✕</button>
-      </div>
-    </div>
-    <div class="zone-body">
-      <div class="images-grid">
-        ${iz.images.map((img, ii) => `
-          <div class="image-item" data-si="${si}" data-izi="${izi}" data-ii="${ii}">
-            <img src="${img}" alt="image">
-            <div class="img-actions">
-              <button class="img-copy-btn" data-img="${esc(img)}" title="复制图片">📋</button>
-              <button class="img-del-btn" data-si="${si}" data-izi="${izi}" data-ii="${ii}" title="删除">✕</button>
-            </div>
-          </div>
-        `).join("")}
-        <div class="image-add-area img-add-trigger" data-si="${si}" data-izi="${izi}">
-          <span>＋</span>
-        </div>
-      </div>
-    </div>
-  `;
+  const imgs = (iz.images || []).map((img, i) => `<div class="image-item" data-si="${si}" data-izi="${izi}" data-ii="${i}"><img src="${img}" alt="" loading="lazy"><div class="img-actions"><button class="img-copy-btn" data-img="${esc(img)}" title="复制">📋</button>${locked ? "" : `<button class="img-del-btn" data-si="${si}" data-izi="${izi}" data-ii="${i}" title="删除">✕</button>`}</div></div>`).join("");
+  if (locked) {
+    zone.innerHTML = `<div class="zone-header"><span class="zone-title-icon">🖼️</span><span class="zone-title" style="font-weight:500;color:#6b7280">${esc(iz.title || "图片区")}</span></div><div class="zone-body"><div class="images-grid">${imgs}</div></div>`;
+  } else {
+    zone.innerHTML = `<div class="zone-header"><span class="zone-title-icon">🖼️</span><input class="zone-title" value="${esc(iz.title)}" placeholder="图片区" data-si="${si}" data-izi="${izi}"><div class="zone-actions"><button class="btn btn-xs btn-danger zone-del" data-si="${si}" data-izi="${izi}" data-type="image" title="删除">✕</button></div></div><div class="zone-body"><div class="images-grid">${imgs}<div class="image-add-area img-add-trigger" data-si="${si}" data-izi="${izi}"><span>＋</span></div></div></div>`;
+  }
   return zone;
 }
-
-function esc(s) { if (!s) return ""; return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
-
-// ============================================================
-// EVENT HANDLING
-// ============================================================
-
-// ---- Section Title Change ----
-sectionsContainer.addEventListener("input", (e) => {
+// ===== 事件委托: input =====
+sectionsContainer.addEventListener("input", e => {
   const el = e.target;
   if (el.classList.contains("section-title")) {
     const si = parseInt(el.dataset.si);
     if (site.sections[si]) { site.sections[si].title = el.value; scheduleSave(); }
+    return;
   }
   if (el.classList.contains("zone-title")) {
-    const si = parseInt(el.dataset.si);
-    const tzi = el.dataset.tzi, izi = el.dataset.izi;
-    if (tzi !== undefined && site.sections[si]?.textZones[parseInt(tzi)]) {
-      site.sections[si].textZones[parseInt(tzi)].title = el.value; scheduleSave();
-    }
-    if (izi !== undefined && site.sections[si]?.imageZones[parseInt(izi)]) {
-      site.sections[si].imageZones[parseInt(izi)].title = el.value; scheduleSave();
-    }
+    const si = parseInt(el.dataset.si), tzi = el.dataset.tzi, izi = el.dataset.izi;
+    if (tzi !== undefined && site.sections[si]?.textZones[parseInt(tzi)]) { site.sections[si].textZones[parseInt(tzi)].title = el.value; scheduleSave(); }
+    if (izi !== undefined && site.sections[si]?.imageZones[parseInt(izi)]) { site.sections[si].imageZones[parseInt(izi)].title = el.value; scheduleSave(); }
+    return;
   }
   if (el.tagName === "TEXTAREA" && el.dataset.bi !== undefined) {
     const si = parseInt(el.dataset.si), tzi = parseInt(el.dataset.tzi), bi = parseInt(el.dataset.bi);
-    if (site.sections[si]?.textZones[tzi]?.blocks[bi]) {
-      site.sections[si].textZones[tzi].blocks[bi].content = el.value;
-      scheduleSave();
-    }
+    if (site.sections[si]?.textZones[tzi]?.blocks[bi]) { site.sections[si].textZones[tzi].blocks[bi].content = el.value; scheduleSave(); }
   }
 });
 
-// ---- Click Events ----
-sectionsContainer.addEventListener("click", (e) => {
+// ===== 事件委托: click =====
+sectionsContainer.addEventListener("click", e => {
   const t = e.target.closest("button");
   if (!t) return;
 
+  if (t.classList.contains("sec-lock") || t.classList.contains("sec-unlock")) { handleLockAction(); return; }
 
-  // Lock / Unlock / Set Password Section (unified)
-  if (t.classList.contains("sec-lock") || t.classList.contains("sec-lock-unlock")) {
-    handleLockAction();
-    return;
-  }
-  // Delete Section
   if (t.classList.contains("sec-del")) {
     const si = parseInt(t.dataset.si);
     if (!confirm("确定删除此分区？")) return;
     site.sections.splice(si, 1); renderSite(); scheduleSave(); return;
   }
 
-  // Add Text Zone
   if (t.classList.contains("zone-add-text")) {
     const si = parseInt(t.dataset.si);
-    const name = prompt("给文字区命名：", "新文字区");
-    if (!name) return;
-    site.sections[si].textZones.push({ id: uid(), title: name, blocks: [] });
+    const n = prompt("给文字区命名：", "新文字区");
+    if (!n || !site.sections[si]) return;
+    site.sections[si].textZones.push({ id: uid(), title: n, blocks: [] });
     renderSite(); scheduleSave(); return;
   }
 
-  // Add Image Zone
   if (t.classList.contains("zone-add-image")) {
     const si = parseInt(t.dataset.si);
-    const name = prompt("给图片区命名：", "新图片区");
-    if (!name) return;
-    site.sections[si].imageZones.push({ id: uid(), title: name, images: [] });
+    const n = prompt("给图片区命名：", "新图片区");
+    if (!n || !site.sections[si]) return;
+    site.sections[si].imageZones.push({ id: uid(), title: n, images: [] });
     renderSite(); scheduleSave(); return;
   }
 
-  // Delete Zone
   if (t.classList.contains("zone-del")) {
     const si = parseInt(t.dataset.si), type = t.dataset.type, tzi = t.dataset.tzi, izi = t.dataset.izi;
     if (!confirm("确定删除此区域？")) return;
-    if (type === "text" && tzi !== undefined) site.sections[si].textZones.splice(parseInt(tzi), 1);
-    else if (type === "image" && izi !== undefined) site.sections[si].imageZones.splice(parseInt(izi), 1);
+    if (type === "text" && tzi !== undefined) site.sections[si]?.textZones.splice(parseInt(tzi), 1);
+    else if (type === "image" && izi !== undefined) site.sections[si]?.imageZones.splice(parseInt(izi), 1);
     renderSite(); scheduleSave(); return;
   }
 
-  // Add Text Block
   if (t.classList.contains("block-add-btn") || t.closest(".block-add-new")) {
     let si, tzi;
     if (t.classList.contains("block-add-btn")) { si = parseInt(t.dataset.si); tzi = parseInt(t.dataset.tzi); }
-    else { si = parseInt(t.dataset.si); tzi = parseInt(t.dataset.tzi); }
-    const z = site.sections[si].textZones[tzi];
+    else { const p = t.closest(".block-add-new"); const b = p.querySelector("button"); si = parseInt(b.dataset.si); tzi = parseInt(b.dataset.tzi); }
+    const z = site.sections[si]?.textZones[tzi];
+    if (!z) return;
     z.blocks.push({ id: uid(), content: "", createdAt: Date.now() });
     renderSite(); scheduleSave();
-    requestAnimationFrame(() => {
-      const tas = sectionsContainer.querySelectorAll(`.block[data-si="${si}"][data-tzi="${tzi}"] textarea`);
-      if (tas.length) tas[tas.length - 1].focus();
-    }); return;
+    requestAnimationFrame(() => { const tas = sectionsContainer.querySelectorAll(`.block[data-si="${si}"][data-tzi="${tzi}"] textarea`); if (tas.length) tas[tas.length - 1].focus(); });
+    return;
   }
 
-  // Copy Text
   if (t.classList.contains("block-copy")) {
     const si = parseInt(t.dataset.si), tzi = parseInt(t.dataset.tzi), bi = parseInt(t.dataset.bi);
     const c = site.sections[si]?.textZones[tzi]?.blocks[bi]?.content || "";
-    if (!c) return;
-    navigator.clipboard.writeText(c).then(() => showToast("文字已复制")).catch(() => showToast("复制失败")); return;
+    if (!c) { showToast("内容为空"); return; }
+    navigator.clipboard.writeText(c).then(() => showToast("已复制")).catch(() => showToast("复制失败")); return;
   }
 
-  // Delete Block
   if (t.classList.contains("block-del")) {
     const si = parseInt(t.dataset.si), tzi = parseInt(t.dataset.tzi), bi = parseInt(t.dataset.bi);
-    site.sections[si].textZones[tzi].blocks.splice(bi, 1);
+    site.sections[si]?.textZones[tzi]?.blocks.splice(bi, 1);
     renderSite(); scheduleSave(); return;
   }
 });
 
-// ---- Image Upload ----
-sectionsContainer.addEventListener("click", (e) => {
+// ===== 图片上传 =====
+sectionsContainer.addEventListener("click", e => {
   const trigger = e.target.closest(".img-add-trigger");
   if (!trigger) return;
   fileInput.dataset.si = trigger.dataset.si;
@@ -489,28 +313,26 @@ fileInput.addEventListener("change", async () => {
   for (const f of files) {
     if (!f.type.startsWith("image/")) continue;
     if (f.size > 5 * 1024 * 1024) { showToast("图片超过 5MB，已跳过"); continue; }
-    try { site.sections[si].imageZones[izi].images.push(await compressImage(f)); } catch (e) { console.error(e); }
+    try { const d = await compressImage(f); if (site.sections[si]?.imageZones[izi]) site.sections[si].imageZones[izi].images.push(d); }
+    catch (e) { console.error(e); }
   }
   renderSite(); scheduleSave();
 });
 
-// ---- Image ops ----
-sectionsContainer.addEventListener("click", async (e) => {
+// 图片复制/删除
+sectionsContainer.addEventListener("click", async e => {
   const btn = e.target.closest(".img-copy-btn");
   if (btn) {
     const src = btn.dataset.img;
     if (!src) return;
-    try {
-      const blob = await (await fetch(src)).blob();
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      showToast("图片已复制");
-    } catch { showToast("可右键保存图片"); }
+    try { const blob = await (await fetch(src)).blob(); await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]); showToast("图片已复制"); }
+    catch { showToast("可右键保存图片"); }
     return;
   }
   const del = e.target.closest(".img-del-btn");
   if (del) {
     const si = parseInt(del.dataset.si), izi = parseInt(del.dataset.izi), ii = parseInt(del.dataset.ii);
-    site.sections[si].imageZones[izi].images.splice(ii, 1);
+    site.sections[si]?.imageZones[izi]?.images.splice(ii, 1);
     renderSite(); scheduleSave();
   }
 });
@@ -519,8 +341,8 @@ function compressImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > 800 || h > 800) { const r = Math.min(800/w, 800/h); w = Math.round(w*r); h = Math.round(h*r); }
+      let w = img.width, h = img.height, max = 800;
+      if (w > max || h > max) { const r = Math.min(max / w, max / h); w = Math.round(w * r); h = Math.round(h * r); }
       const c = document.createElement("canvas"); c.width = w; c.height = h;
       c.getContext("2d").drawImage(img, 0, 0, w, h);
       resolve(c.toDataURL("image/jpeg", 0.8));
@@ -530,279 +352,168 @@ function compressImage(file) {
   });
 }
 
-// ============================================================
-// SHARE
-// ============================================================
-
-// ============================================================
-// SEARCH
-// ============================================================
-let searchActive = false;
-
+// ===== 搜索 =====
 function toggleSearch() {
   searchActive = !searchActive;
-  if (searchActive) {
-    searchBar.classList.remove("hidden");
-    searchInput.focus();
-  } else {
-    searchBar.classList.add("hidden");
-    searchInput.value = "";
-    clearSearch();
-  }
+  if (searchActive) { searchBar.classList.remove("hidden"); searchInput.focus(); }
+  else { searchBar.classList.add("hidden"); searchInput.value = ""; clearSearch(); }
 }
-
-
-// ---- Lock state ----
-var siteUnlocked = false;
-
-function checkSitePw(pw) { return site.sitePassword === pw; }
-function handleLockAction() {
-  if (!site || !site.sitePassword || site.sitePassword.length === 0) {
-    var pw = prompt("设置统一密码（留空取消）：");
-    if (pw === null) return;
-    site.sitePassword = pw || "";
-    if (site.sitePassword) siteUnlocked = false;
-    siteTitleInput.disabled = !!(site.sitePassword && !siteUnlocked);
-    renderSite(); scheduleSave();
-    showToast(pw ? "密码已设置" : "密码已清除");
-  } else if (siteUnlocked) {
-    siteUnlocked = false;
-    siteTitleInput.disabled = true;
-    renderSite();
-  } else {
-    var pw = prompt("请输入密码：");
-    if (pw === null) return;
-    if (checkSitePw(pw)) {
-      siteUnlocked = true;
-      siteTitleInput.disabled = false;
-      renderSite();
-      showToast("解锁成功");
-    } else {
-      showToast("密码错误");
-    }
-  }
-}
-  }
-  return false;
-}
-
 function clearSearch() {
-  var els = document.querySelectorAll(".section");
-  for (var i = 0; i < els.length; i++) {
-    els[i].classList.remove("section-hidden");
-    els[i].classList.remove("section-highlight");
-  }
+  $$(".section").forEach(el => { el.classList.remove("section-hidden"); el.classList.remove("section-highlight"); });
   searchCount.textContent = "";
 }
-
 function filterSections(query) {
-  var q = query.toLowerCase().trim();
-  var els = document.querySelectorAll(".section");
-  var count = 0;
-  for (var i = 0; i < els.length; i++) {
-    var section = els[i];
-    var titleInput = section.querySelector(".section-title");
-    var title = titleInput ? titleInput.value.toLowerCase() : "";
-    var zones = section.querySelectorAll(".zone-title");
-    var zoneMatch = false;
-    for (var j = 0; j < zones.length; j++) {
-      if (zones[j].value.toLowerCase().indexOf(q) >= 0) { zoneMatch = true; break; }
-    }
+  const q = query.toLowerCase().trim();
+  const els = $$(".section");
+  let count = 0;
+  els.forEach(el => {
+    const title = (el.querySelector(".section-title")?.value || "").toLowerCase();
+    let zoneMatch = false;
+    el.querySelectorAll(".zone-title").forEach(zi => { if (zi.value.toLowerCase().indexOf(q) >= 0) zoneMatch = true; });
     if (title.indexOf(q) >= 0 || zoneMatch) {
-      section.classList.remove("section-hidden");
-      section.classList.add("section-highlight");
-      count++;
+      el.classList.remove("section-hidden"); el.classList.add("section-highlight"); count++;
     } else {
-      section.classList.add("section-hidden");
-      section.classList.remove("section-highlight");
+      el.classList.add("section-hidden"); el.classList.remove("section-highlight");
     }
-  }
-  searchCount.textContent = count + "/" + els.length + " sections";
+  });
+  searchCount.textContent = count + "/" + els.length + " 个分区";
 }
 
-
-
-// Hidden CSS for search filtering
-(function() {
-  var s = document.createElement("style");
-  s.textContent = ".section-hidden{display:none!important}";
-  document.head.appendChild(s);
-})();
-
-// ============================================================
-// TABLE OF CONTENTS
-// ============================================================
+// ===== 目录 =====
 function renderTOC() {
   if (!site || !tocList) return;
   tocList.innerHTML = "";
-  if (site.sections.length === 0) {
-    tocEmpty.classList.remove("hidden");
-    return;
-  }
+  if (!site.sections.length) { tocEmpty.classList.remove("hidden"); return; }
   tocEmpty.classList.add("hidden");
-  site.sections.forEach(function(sec, si) {
-    var item = document.createElement("div");
+  site.sections.forEach((sec, si) => {
+    const item = document.createElement("div");
     item.className = "toc-item";
-    var tc = sec.textZones ? sec.textZones.length : 0;
-    var ic = sec.imageZones ? sec.imageZones.length : 0;
-    var meta = [];
-    if (tc > 0) meta.push("\ud83d\udcdd" + tc);
-    if (ic > 0) meta.push("\ud83d\uddbc" + ic);
-    item.innerHTML = "<span class=\"toc-item-name\">" + (sec.title || "Unnamed") + "</span><span class=\"toc-item-meta\">" + meta.join(" ") + "</span>";
-    item.addEventListener("click", function() {
+    const tc = sec.textZones?.length || 0, ic = sec.imageZones?.length || 0;
+    const meta = [];
+    if (tc) meta.push("📝" + tc);
+    if (ic) meta.push("🖼️" + ic);
+    item.innerHTML = `<span class="toc-item-name">${esc(sec.title || "未命名")}</span><span class="toc-item-meta">${meta.join(" ")}</span>`;
+    item.addEventListener("click", () => {
       tocModal.classList.add("hidden");
       if (searchActive) { searchActive = false; searchBar.classList.add("hidden"); searchInput.value = ""; clearSearch(); }
-      var el = document.querySelectorAll(".section")[si];
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        el.classList.add("section-highlight");
-        setTimeout(function() { el.classList.remove("section-highlight"); }, 2000);
-      }
+      const el = $$(".section")[si];
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); el.classList.add("section-highlight"); setTimeout(() => el.classList.remove("section-highlight"), 2000); }
     });
     tocList.appendChild(item);
   });
 }
 
+// ===== 锁定/解锁 =====
+function handleLockAction() {
+  if (!site) return;
+  const hasPw = site.sitePassword && site.sitePassword.length > 0;
+  if (!hasPw) {
+    const pw = prompt("设置站点密码（留空取消）：");
+    if (pw === null) return;
+    site.sitePassword = pw || "";
+    siteUnlocked = false; siteTitleInput.disabled = !!site.sitePassword;
+    renderSite(); scheduleSave(); showToast(pw ? "密码已设置" : "密码已清除"); return;
+  }
+  if (siteUnlocked) { siteUnlocked = false; siteTitleInput.disabled = true; renderSite(); return; }
+  const pw = prompt("请输入站点密码：");
+  if (pw === null) return;
+  if (pw === site.sitePassword) { siteUnlocked = true; siteTitleInput.disabled = false; renderSite(); showToast("🔓 解锁成功"); }
+  else { showToast("❌ 密码错误"); }
+}
 
-// ============================================================
-// SHARE
-// ============================================================
-
-btnShare.addEventListener("click", async () => {
+// ===== 分享 =====
+btnShare?.addEventListener("click", async () => {
   if (!siteId) return;
-  var link = window.location.origin + window.location.pathname + "?id=" + siteId;
+  const link = window.location.origin + window.location.pathname.replace(/[?#].*$/, "") + "?id=" + siteId;
   shareLink.value = link;
-  qrContainer.innerHTML = "<p style='color:#999;font-size:13px;text-align:center;padding:20px'>加载二维码...</p>";
+  qrContainer.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px">加载二维码...</p>';
   try {
     if (typeof QRCode === "undefined") {
-      await new Promise(function(resolve, reject) {
-        var s = document.createElement("script");
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
         s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
-        s.onload = resolve;
-        s.onerror = reject;
+        s.onload = resolve; s.onerror = reject;
         document.head.appendChild(s);
       });
     }
     qrContainer.innerHTML = "";
     new QRCode(qrContainer, { text: link, width: 160, height: 160, colorDark: "#1a1a2e", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
-  } catch(e) {
-    qrContainer.innerHTML = "<p style='color:#999;font-size:13px;text-align:center;padding:20px'>二维码加载失败，复制链接即可</p>";
-  }
+  } catch (e) { qrContainer.innerHTML = '<p style="color:#999;font-size:13px;text-align:center;padding:20px">二维码加载失败</p>'; }
   shareModal.classList.remove("hidden");
 });
-
-btnCloseModal?.addEventListener("click", () => shareModal.classList.add("hidden"));
-shareModal?.addEventListener("click", (e) => { if (e.target === shareModal) shareModal.classList.add("hidden"); });
-
+btnCloseShare?.addEventListener("click", () => shareModal.classList.add("hidden"));
+shareModal?.addEventListener("click", e => { if (e.target === shareModal) shareModal.classList.add("hidden"); });
 btnCopyLink?.addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(shareLink.value); showToast("链接已复制"); }
   catch { shareLink.select(); document.execCommand("copy"); showToast("链接已复制"); }
 });
 
-// ============================================================
-// MAIN
-// ============================================================
-
-function renderOwnedList() {
-  if (!ownedListHome) return;
-  const list = getOwned();
-  ownedListHome.innerHTML = list.length
-    ? list.map(id => `<a href="?id=${id}" class="owned-site-btn">📦 ${id.slice(0,12)}...</a>`).join("")
-    : "";
-}
-
-async function init() {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
-
-  renderOwnedList();
-  await initSettings();
-
-  if (id) {
-    pageHome.classList.add("hidden");
-    pageSite.classList.remove("hidden");
-    siteLoading.classList.remove("hidden");
-    siteError.classList.add("hidden");
-    sectionsContainer.classList.add("hidden");
-    $("#site-footer-bar").classList.add("hidden");
-
-    try {
-      const data = await gistGet(id);
-      site = data;
-      site.title = site.title || "WT";
-      siteId = id;
-      site.id = data.id || id;
-      isOwner = hasGH();
-      siteLoading.classList.add("hidden");
-      renderSite();
-      siteTitleInput.value = site.title || "WT";
-      siteTitleInput.disabled = !!(site.sitePassword && !siteUnlocked);
-
-      // Bind search & TOC events
-      if (btnSearch) btnSearch.addEventListener("click", toggleSearch);
-      if (searchInput) searchInput.addEventListener("input", function() {
-        if (this.value.trim()) filterSections(this.value); else clearSearch();
-      });
-      if (btnSearchClose) btnSearchClose.addEventListener("click", function() {
-        if (searchActive) toggleSearch();
-      });
-      if (btnToc) btnToc.addEventListener("click", function() {
-        if (searchActive) { searchActive = false; searchBar.classList.add("hidden"); searchInput.value = ""; clearSearch(); }
-        renderTOC(); tocModal.classList.remove("hidden");
-      });
-      if (btnCloseToc) btnCloseToc.addEventListener("click", function() { tocModal.classList.add("hidden"); });
-      if (tocModal) tocModal.addEventListener("click", function(e) {
-        if (e.target === tocModal) tocModal.classList.add("hidden");
-      });
-    } catch (e) {
-      siteLoading.classList.add("hidden");
-      siteError.classList.remove("hidden");
-    }
-  }
-}
-
-// Create Site
-btnCreateSite.addEventListener("click", async () => {
-  if (!hasGH()) { showToast("请先配置 Gitee Token"); return; }
+// ===== 创建站点 =====
+btnCreateSite?.addEventListener("click", async () => {
+  if (!hasToken()) { showToast("请先配置 GitHub Token"); return; }
   try {
-    const empty = { id: "", title: "WT", sitePassword: "", sections: [], createdAt: Date.now(), updatedAt: Date.now() };
-    const gistId = await gistCreate(empty);
-    addOwned(gistId);
-    window.location.search = "?id=" + gistId;
-  } catch (e) {
-    showToast("创建失败: " + e.message);
-  }
+    const id = await gistCreate({ id: "", title: "我的站点", sitePassword: "", sections: [], createdAt: Date.now(), updatedAt: Date.now() });
+    addOwned(id); window.location.search = "?id=" + id;
+  } catch (e) { showToast("创建失败: " + e.message); }
 });
 
-// Add Section
+// ===== 添加分区 =====
 function addSectionHandler() {
   if (!siteId || !isOwner) return;
-  const name = prompt("给新分区命名：", "新分区");
-  if (!name) return;
-  site.sections.push({ id: uid(), title: name, textZones: [], imageZones: [] });
+  const n = prompt("给新分区命名：", "新分区");
+  if (!n) return;
+  site.sections.push({ id: uid(), title: n, textZones: [], imageZones: [] });
   renderSite(); scheduleSave();
 }
 btnAddSection?.addEventListener("click", addSectionHandler);
-
-  // ---- Site unlock handler ----
-  // ---- Site unlock handler (unified) ----
-  var stLock = document.getElementById("btn-site-lock");
-  if (stLock) {
-    stLock.addEventListener("click", function() {
-      handleLockAction();
-    });
-  }
-
 btnAddSectionBottom?.addEventListener("click", addSectionHandler);
 
-if (document.getElementById("btn-settings-home")) {
-  document.getElementById("btn-settings-home").addEventListener("click", (e) => { e.preventDefault(); showSettingsModal(); });
-}
-if (btnSettings) {
-  btnSettings.addEventListener("click", showSettingsModal);
-}
+// ===== 搜索/TOC 按钮 =====
+btnSearch?.addEventListener("click", toggleSearch);
+searchInput?.addEventListener("input", function() { if (this.value.trim()) filterSections(this.value); else clearSearch(); });
+btnSearchClose?.addEventListener("click", () => { if (searchActive) toggleSearch(); });
+btnToc?.addEventListener("click", () => {
+  if (searchActive) { searchActive = false; searchBar.classList.add("hidden"); searchInput.value = ""; clearSearch(); }
+  renderTOC(); tocModal.classList.remove("hidden");
+});
+btnCloseToc?.addEventListener("click", () => tocModal.classList.add("hidden"));
+tocModal?.addEventListener("click", e => { if (e.target === tocModal) tocModal.classList.add("hidden"); });
+stLock?.addEventListener("click", handleLockAction);
+
+// ===== 设置弹窗 =====
+document.getElementById("btn-settings-home")?.addEventListener("click", e => { e.preventDefault(); showSettingsModal(); });
+btnSettings?.addEventListener("click", showSettingsModal);
+btnCloseSettings?.addEventListener("click", () => settingsModal.classList.add("hidden"));
+settingsModal?.addEventListener("click", e => { if (e.target === settingsModal) settingsModal.classList.add("hidden"); });
+btnSaveToken?.addEventListener("click", () => {
+  const t = tokenInput.value.trim();
+  if (!t) { tokenStatus.textContent = "请输入 Token"; return; }
+  setToken(t); tokenStatus.textContent = "✅ Token 已保存"; renderSetupBanner(); btnCreateSite.disabled = false;
+  setTimeout(() => settingsModal.classList.add("hidden"), 600);
+});
+btnClearToken?.addEventListener("click", () => { setToken(""); btnCreateSite.disabled = true; settingsModal.classList.add("hidden"); renderSetupBanner(); showToast("已清除 Token"); });
+siteTitleInput?.addEventListener("change", function() { if (site && siteId) { site.title = this.value || "我的站点"; scheduleSave(); } });
+
+// ===== 主入口 =====
+(async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+  renderOwnedList(); renderSetupBanner();
+  if (id) {
+    pageHome.classList.add("hidden"); pageSite.classList.remove("hidden");
+    siteLoading.classList.remove("hidden"); siteError.classList.add("hidden");
+    sectionsContainer.classList.add("hidden"); document.getElementById("site-footer-bar").classList.add("hidden");
+    try {
+      const data = await gistGet(id);
+      site = data; site.title = site.title || "我的站点"; siteId = id;
+      isOwner = hasToken(); siteUnlocked = !(site.sitePassword && site.sitePassword.length > 0);
+      siteLoading.classList.add("hidden"); renderSite();
+      siteTitleInput.value = site.title; siteTitleInput.disabled = !siteUnlocked;
+    } catch (e) {
+      console.error("Load error:", e);
+      siteLoading.classList.add("hidden"); siteError.classList.remove("hidden");
+    }
+  }
+})();
 
 window.addEventListener("popstate", () => location.reload());
-document.addEventListener("DOMContentLoaded", init);
-
-
