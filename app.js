@@ -597,6 +597,7 @@ function renderTOC() {
     item.innerHTML = "<span class=\"toc-item-name\">" + (sec.title || "Unnamed") + "</span><span class=\"toc-item-meta\">" + meta.join(" ") + "</span>";
     item.addEventListener("click", function() {
       tocModal.classList.add("hidden");
+      if (searchActive) { searchActive = false; searchBar.classList.add("hidden"); searchInput.value = ""; clearSearch(); }
       var el = document.querySelectorAll(".section")[si];
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -677,6 +678,7 @@ async function init() {
         if (searchActive) toggleSearch();
       });
       if (btnToc) btnToc.addEventListener("click", function() {
+        if (searchActive) { searchActive = false; searchBar.classList.add("hidden"); searchInput.value = ""; clearSearch(); }
         renderTOC(); tocModal.classList.remove("hidden");
       });
       if (btnCloseToc) btnCloseToc.addEventListener("click", function() { tocModal.classList.add("hidden"); });
