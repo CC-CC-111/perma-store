@@ -403,27 +403,9 @@ sectionsContainer.addEventListener("click", (e) => {
   if (!t) return;
 
 
-  // Lock / Unlock / Set Password Section
+  // Lock / Unlock / Set Password Section (unified)
   if (t.classList.contains("sec-lock") || t.classList.contains("sec-lock-unlock")) {
-    var si = parseInt(t.dataset.si);
-    var sec = site.sections[si];
-    if (!sec) return;
-    if (!site.sitePassword || site.sitePassword.length === 0) {
-      var pw = prompt("设置统一密码（留空取消）：");
-      if (pw === null) return;
-      site.sitePassword = pw || "";
-      if (site.sitePassword) siteUnlocked = false;
-      renderSite(); scheduleSave();
-      showToast(pw ? "密码已设置" : "密码已清除");
-    } else if (siteUnlocked) {
-      siteUnlocked = false;
-      renderSite();
-    } else {
-      var pw = prompt("请输入密码：");
-      if (pw === null) return;
-      if (checkSitePw(pw)) { siteUnlocked = true; showToast("解锁成功"); }
-      else { showToast("密码错误"); }
-    }
+    handleLockAction();
     return;
   }
   // Delete Section
@@ -574,14 +556,32 @@ function toggleSearch() {
 var siteUnlocked = false;
 
 function checkSitePw(pw) { return site.sitePassword === pw; }
-  return false;
-}
-
-function unlockSite(pw) {
-  if (site.sitePassword === pw) {
-    siteUnlocked = true;
+function handleLockAction() {
+  if (!site || !site.sitePassword || site.sitePassword.length === 0) {
+    var pw = prompt("设置统一密码（留空取消）：");
+    if (pw === null) return;
+    site.sitePassword = pw || "";
+    if (site.sitePassword) siteUnlocked = false;
+    siteTitleInput.disabled = !!(site.sitePassword && !siteUnlocked);
+    renderSite(); scheduleSave();
+    showToast(pw ? "密码已设置" : "密码已清除");
+  } else if (siteUnlocked) {
+    siteUnlocked = false;
+    siteTitleInput.disabled = true;
     renderSite();
-    return true;
+  } else {
+    var pw = prompt("请输入密码：");
+    if (pw === null) return;
+    if (checkSitePw(pw)) {
+      siteUnlocked = true;
+      siteTitleInput.disabled = false;
+      renderSite();
+      showToast("解锁成功");
+    } else {
+      showToast("密码错误");
+    }
+  }
+}
   }
   return false;
 }
@@ -785,34 +785,11 @@ function addSectionHandler() {
 btnAddSection?.addEventListener("click", addSectionHandler);
 
   // ---- Site unlock handler ----
+  // ---- Site unlock handler (unified) ----
   var stLock = document.getElementById("btn-site-lock");
   if (stLock) {
     stLock.addEventListener("click", function() {
-      if (!site || !site.sitePassword) {
-        var pw = prompt("设置站点密码（留空取消）：");
-        if (pw === null) return;
-        site.sitePassword = pw || "";
-        scheduleSave();
-        showToast(pw ? "站点密码已设置" : "站点密码已清除");
-        siteUnlocked = !site.sitePassword;
-        siteTitleInput.disabled = !!(site.sitePassword && !siteUnlocked);
-        renderSite();
-        return;
-      }
-      if (siteUnlocked) {
-        siteUnlocked = false;
-        siteTitleInput.disabled = true;
-        renderSite();
-        return;
-      }
-      var pw = prompt("请输入站点密码：");
-      if (pw === null) return;
-      if (unlockSite(pw)) {
-        siteTitleInput.disabled = false;
-        showToast("站点已解锁");
-      } else {
-        showToast("密码错误");
-      }
+      handleLockAction();
     });
   }
 
