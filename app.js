@@ -1,26 +1,26 @@
 ﻿// ============================================================
 // 永久存储 v3 — 基于 GitHub Gist 存储
-// 不需要服务器，前端直接调 GitHub API
+// 不需要服务器，前端直接调 Gitee API
 // ============================================================
 
-// ---- GitHub 配置 ----
-const GITHUB_API = "https://api.github.com";
+// ---- Gitee 配置 ----
+const GITEE_API = "https://gitee.com/api/v5";
 
 function getGH(prefix = "") {
-  // 读取 localStorage 中的 GitHub Token
-  return localStorage.getItem("gh_" + prefix + "token") || "";
+  // 读取 localStorage 中的 Gitee Token
+  return localStorage.getItem("gt_" + prefix + "token") || "";
 }
 function setGH(val, prefix = "") {
-  localStorage.setItem("gh_" + prefix + "token", val);
+  localStorage.setItem("gt_" + prefix + "token", val);
 }
 function hasGH(prefix = "") {
   return getGH(prefix).length > 0;
 }
 
 // ---- 测试 Token 有效性 ----
-async function testGitHubToken(token) {
+// async function testGiteeToken(token) {
   try {
-    const r = await fetch(GITHUB_API + "/user", {
+    const r = await fetch(GITEE_API + "/user", {
       headers: { "Authorization": "Bearer " + token, "Accept": "application/vnd.github.v3+json" },
     });
     if (!r.ok) return { ok: false, msg: "Token 无效（状态码 " + r.status + "）" };
@@ -31,47 +31,47 @@ async function testGitHubToken(token) {
   }
 }
 
-// ---- GitHub API 函数 ----
+// ---- Gitee API 函数 ----
 async function gistCreate(siteData) {
-  const r = await fetch(GITHUB_API + "/gists", {
+  const r = await fetch(GITEE_API + "/gists", {
     method: "POST",
     headers: { "Authorization": "Bearer " + getGH(), "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
     body: JSON.stringify({
       description: "Permanent Store - " + new Date().toLocaleString("zh-CN"),
       public: true,
-      files: { "site.json": { content: JSON.stringify(siteData) } }
+      files: [ { name: "site.json", content: JSON.stringify(siteData) } ]
     }),
   });
   if (!r.ok) {
     const err = await r.text();
-    throw new Error("GitHub 创建失败: " + r.status + " " + err.slice(0, 100));
+    throw new Error("Gitee 创建失败: " + r.status + " " + err.slice(0, 100));
   }
   const d = await r.json();
   return d.id;
 }
 
 async function gistGet(gistId) {
-  const r = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
+  const r = await fetch(GITEE_API + "/gists/" + encodeURIComponent(gistId), {
     headers: { "Accept": "application/vnd.github.v3+json" },
   });
   if (!r.ok) throw new Error("获取失败: " + r.status);
   const d = await r.json();
-  const content = d.files && d.files["site.json"] && d.files["site.json"].content;
+  const content = d.files && d.files[0] && d.files[0].content;
   if (!content) throw new Error("内容不存在");
   return JSON.parse(content);
 }
 
 async function gistUpdate(gistId, siteData) {
-  const r = await fetch(GITHUB_API + "/gists/" + encodeURIComponent(gistId), {
+  const r = await fetch(GITEE_API + "/gists/" + encodeURIComponent(gistId), {
     method: "PATCH",
     headers: { "Authorization": "Bearer " + getGH(), "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
     body: JSON.stringify({
-      files: { "site.json": { content: JSON.stringify(siteData) } }
+      files: [ { name: "site.json", content: JSON.stringify(siteData) } ]
     }),
   });
   if (!r.ok) {
     const err = await r.text();
-    throw new Error("GitHub 保存失败: " + r.status + " " + err.slice(0, 100));
+    throw new Error("Gitee 保存失败: " + r.status + " " + err.slice(0, 100));
   }
   return true;
 }
@@ -134,11 +134,11 @@ function showToast(msg) {
 
 // ---- Owned Sites (localStorage) ----
 function getOwned() {
-  try { return JSON.parse(localStorage.getItem("gh_owned") || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem("gt_owned") || "[]"); } catch { return []; }
 }
 function addOwned(gistId) {
   const list = getOwned();
-  if (!list.includes(gistId)) { list.push(gistId); localStorage.setItem("gh_owned", JSON.stringify(list)); }
+  if (!list.includes(gistId)) { list.push(gistId); localStorage.setItem("gt_owned", JSON.stringify(list)); }
 }
 
 // ---- Save Status ----
@@ -178,7 +178,7 @@ async function initSettings() {
     var bs = setupBanner.querySelector("#btn-open-settings");
     if (bs) bs.addEventListener("click", showSettingsModal);
   } else {
-    setupBanner.innerHTML = '<div class="setup-prompt"><p>🔑 请先配置 GitHub 令牌，才能创建和编辑站点</p><button class="btn btn-primary btn-sm" id="btn-open-settings">配置 GitHub</button></div>';
+    setupBanner.innerHTML = '<div class="setup-prompt"><p>🔑 请先配置 Gitee 令牌，才能创建和编辑站点</p><button class="btn btn-primary btn-sm" id="btn-open-settings">配置 Gitee</button></div>';
     btnCreateSite.disabled = true;
     var bs = setupBanner.querySelector("#btn-open-settings");
     if (bs) bs.addEventListener("click", showSettingsModal);
@@ -200,8 +200,8 @@ function renderSetupBanner() {
   } else {
     setupBanner.innerHTML = `
       <div class="setup-prompt">
-        <p>🔑 请先配置 GitHub 令牌，才能创建和编辑站点</p>
-        <button class="btn btn-primary btn-sm" id="btn-open-settings">配置 GitHub</button>
+        <p>🔑 请先配置 Gitee 令牌，才能创建和编辑站点</p>
+        <button class="btn btn-primary btn-sm" id="btn-open-settings">配置 Gitee</button>
       </div>`;
     setupBanner.querySelector("#btn-open-settings")?.addEventListener("click", showSettingsModal);
   }
@@ -763,7 +763,7 @@ async function init() {
 
 // Create Site
 btnCreateSite.addEventListener("click", async () => {
-  if (!hasGH()) { showToast("请先配置 GitHub Token"); return; }
+  if (!hasGH()) { showToast("请先配置 Gitee Token"); return; }
   try {
     const empty = { id: "", title: "WT", sitePassword: "", sections: [], createdAt: Date.now(), updatedAt: Date.now() };
     const gistId = await gistCreate(empty);
