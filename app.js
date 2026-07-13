@@ -103,6 +103,17 @@ const saveStatus = $("#save-status");
 const setupBanner = $("#setup-banner");
 const tokenInput = $("#token-input");
 const btnSaveToken = $("#btn-save-token");
+const siteTitleInput = $("#site-title");
+const searchBar = $("#search-bar");
+const searchInput = $("#search-input");
+const btnSearch = $("#btn-search");
+const btnSearchClose = $("#btn-search-close");
+const searchCount = $("#search-count");
+const btnToc = $("#btn-toc");
+const tocModal = $("#toc-modal");
+const tocList = $("#toc-list");
+const tocEmpty = $("#toc-empty");
+const btnCloseToc = $("#btn-close-toc");
 const btnTestToken = $("#btn-test-token");
 const tokenStatus = $("#token-status");
 function ghUserEl() { return document.getElementById("gh-user"); }
@@ -209,6 +220,14 @@ $("#btn-close-settings")?.addEventListener("click", () => {
 $("#settings-modal")?.addEventListener("click", (e) => {
   if (e.target === $("#settings-modal")) {
     document.getElementById("settings-modal").classList.add("hidden");
+  }
+});
+
+// ---- Editable Site Title ----
+siteTitleInput?.addEventListener("change", function() {
+  if (site && siteId) {
+    site.title = siteTitleInput.value || "WT";
+    scheduleSave();
   }
 });
 
@@ -491,6 +510,118 @@ function compressImage(file) {
     img.src = URL.createObjectURL(file);
   });
 }
+
+// ============================================================
+// SHARE
+// ============================================================
+
+// ============================================================
+// SEARCH
+// ============================================================
+let searchActive = false;
+
+function toggleSearch() {
+  searchActive = !searchActive;
+  if (searchActive) {
+    searchBar.classList.remove("hidden");
+    searchInput.focus();
+  } else {
+    searchBar.classList.add("hidden");
+    searchInput.value = "";
+    clearSearch();
+  }
+}
+
+function clearSearch() {
+  var els = document.querySelectorAll(".section");
+  for (var i = 0; i < els.length; i++) {
+    els[i].classList.remove("section-hidden");
+    els[i].classList.remove("section-highlight");
+  }
+  searchCount.textContent = "";
+}
+
+function filterSections(query) {
+  var q = query.toLowerCase().trim();
+  var els = document.querySelectorAll(".section");
+  var count = 0;
+  for (var i = 0; i < els.length; i++) {
+    var section = els[i];
+    var titleInput = section.querySelector(".section-title");
+    var title = titleInput ? titleInput.value.toLowerCase() : "";
+    var zones = section.querySelectorAll(".zone-title");
+    var zoneMatch = false;
+    for (var j = 0; j < zones.length; j++) {
+      if (zones[j].value.toLowerCase().indexOf(q) >= 0) { zoneMatch = true; break; }
+    }
+    if (title.indexOf(q) >= 0 || zoneMatch) {
+      section.classList.remove("section-hidden");
+      section.classList.add("section-highlight");
+      count++;
+    } else {
+      section.classList.add("section-hidden");
+      section.classList.remove("section-highlight");
+    }
+  }
+  searchCount.textContent = count + "/" + els.length + " sections";
+}
+
+btnSearch?.addEventListener("click", toggleSearch);
+searchInput?.addEventListener("input", function() {
+  if (this.value.trim()) filterSections(this.value); else clearSearch();
+});
+btnSearchClose?.addEventListener("click", function() {
+  if (searchActive) toggleSearch();
+});
+
+// Hidden CSS for search filtering
+(function() {
+  var s = document.createElement("style");
+  s.textContent = ".section-hidden{display:none!important}";
+  document.head.appendChild(s);
+})();
+
+// ============================================================
+// TABLE OF CONTENTS
+// ============================================================
+function renderTOC() {
+  if (!site || !tocList) return;
+  tocList.innerHTML = "";
+  if (site.sections.length === 0) {
+    tocEmpty.classList.remove("hidden");
+    return;
+  }
+  tocEmpty.classList.add("hidden");
+  site.sections.forEach(function(sec, si) {
+    var item = document.createElement("div");
+    item.className = "toc-item";
+    var tc = sec.textZones ? sec.textZones.length : 0;
+    var ic = sec.imageZones ? sec.imageZones.length : 0;
+    var meta = [];
+    if (tc > 0) meta.push("\ud83d\udcdd" + tc);
+    if (ic > 0) meta.push("\ud83d\uddbc" + ic);
+    item.innerHTML = "<span class=\"toc-item-name\">" + (sec.title || "Unnamed") + "</span><span class=\"toc-item-meta\">" + meta.join(" ") + "</span>";
+    item.addEventListener("click", function() {
+      tocModal.classList.add("hidden");
+      var el = document.querySelectorAll(".section")[si];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.classList.add("section-highlight");
+        setTimeout(function() { el.classList.remove("section-highlight"); }, 2000);
+      }
+    });
+    tocList.appendChild(item);
+  });
+}
+
+btnToc?.addEventListener("click", function() {
+  renderTOC();
+  tocModal.classList.remove("hidden");
+});
+btnCloseToc?.addEventListener("click", function() { tocModal.classList.add("hidden"); });
+tocModal?.addEventListener("click", function(e) {
+  if (e.target === tocModal) tocModal.classList.add("hidden");
+});
 
 // ============================================================
 // SHARE

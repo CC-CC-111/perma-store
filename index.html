@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>永久存储 - 分区管理你的内容</title>
+  <title>WT资料修改库</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -15,16 +15,11 @@
   <div id="page-home" class="page">
     <div class="home-center">
       <div class="home-logo">📦</div>
-      <h1 class="home-title">永久存储</h1>
+      <h1 class="home-title">WT资料修改库</h1>
       <p class="home-desc">分区管理你的文字和图片，生成永久链接随时分享</p>
-
-      <!-- Setup Banner -->
       <div id="setup-banner" class="setup-banner"></div>
-
       <button id="btn-create-site" class="btn btn-primary btn-large" disabled>＋ 创建新站点</button>
-
       <div class="home-owned" id="owned-list-home"></div>
-
       <div class="home-help">
         <p>💡 需要先配置 <a href="#" id="btn-settings-home">GitHub Token</a> 才能创建站点</p>
       </div>
@@ -36,15 +31,25 @@
     <header class="site-header">
       <div class="site-header-left">
         <a href="/" class="site-logo">📦</a>
-        <h2 class="site-title">永久存储</h2>
+        <input type="text" id="site-title" class="site-title-input" placeholder="站点名称">
       </div>
       <div class="site-header-right">
+        <button id="btn-search" class="btn btn-secondary btn-icon" title="搜索">🔍</button>
+        <button id="btn-toc" class="btn btn-secondary btn-icon" title="目录">📋</button>
         <button id="btn-add-section" class="btn btn-primary btn-sm">＋ 分区</button>
         <button id="btn-share" class="btn btn-secondary btn-sm">🔗 分享</button>
         <button id="btn-settings" class="btn btn-secondary btn-sm" title="设置">⚙️</button>
         <span id="save-status" class="save-status"></span>
       </div>
     </header>
+
+    <!-- 搜索栏 -->
+    <div id="search-bar" class="search-bar hidden">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" class="search-input" placeholder="搜索分区名称...">
+      <button id="btn-search-close" class="btn btn-xs btn-secondary">✕</button>
+      <span id="search-count" class="search-count"></span>
+    </div>
 
     <div id="site-loading" class="site-loading">
       <div class="spinner"></div>
@@ -61,6 +66,20 @@
 
     <div id="site-footer-bar" class="site-footer-bar hidden">
       <button id="btn-add-section-bottom" class="btn btn-secondary">＋ 添加新分区</button>
+    </div>
+  </div>
+
+  <!-- ========== 目录弹窗 ========== -->
+  <div id="toc-modal" class="modal-backdrop hidden">
+    <div class="modal toc-modal">
+      <div class="modal-header">
+        <h3>📋 目录</h3>
+        <button class="modal-close" id="btn-close-toc">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="toc-list" class="toc-list"></div>
+        <div id="toc-empty" class="toc-empty hidden">暂无分区</div>
+      </div>
     </div>
   </div>
 
@@ -84,7 +103,6 @@
         <div id="token-status" class="token-status"></div>
         <div class="modal-buttons">
           <button id="btn-save-token" class="btn btn-primary">保存</button>
-          <button id="btn-test-token" class="btn btn-secondary" hidden>测试</button>
           <button id="btn-clear-token" class="btn btn-danger btn-sm">清除</button>
         </div>
       </div>
