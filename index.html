@@ -147,6 +147,24 @@
     </div>
   </div>
 
+    <!-- ============ 输入弹窗 ============ -->
+  <div id="prompt-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="prompt-title">输入</h3>
+        <button class="modal-close" id="btn-close-prompt">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="prompt-desc" class="modal-desc"></p>
+        <input type="text" id="prompt-input" class="modal-input" placeholder="">
+        <div class="modal-buttons" style="justify-content:flex-end">
+          <button class="btn btn-secondary" id="btn-cancel-prompt">取消</button>
+          <button class="btn btn-primary" id="btn-confirm-prompt">确定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <input type="file" id="file-input" accept="image/*" multiple hidden>
   <div id="toast" class="toast hidden"></div>
 

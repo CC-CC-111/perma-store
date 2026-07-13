@@ -34,6 +34,8 @@ const btnSearch = $("#btn-search"), btnSearchClose = $("#btn-search-close"), sea
 const btnToc = $("#btn-toc"), tocModal = $("#toc-modal"), tocList = $("#toc-list");
 const tocEmpty = $("#toc-empty"), btnCloseToc = $("#btn-close-toc");
 const ownedListHome = $("#owned-list-home"), stLock = $("#btn-site-lock");
+const promptModal = $("#prompt-modal"), promptTitle = $("#prompt-title"), promptDesc = $("#prompt-desc");
+const promptInput = $("#prompt-input"), btnConfirmPrompt = $("#btn-confirm-prompt"), btnCancelPrompt = $("#btn-cancel-prompt"), btnClosePrompt = $("#btn-close-prompt");
 
 // ===== 状态 =====
 let site = null, siteId = null, isOwner = false;
@@ -134,6 +136,50 @@ function renderOwnedList() {
   ownedListHome.innerHTML = '<h3>📦 我的站点</h3><div id="owned-sites-list">'
     + l.map(i => '<a href="?id=' + i + '" class="owned-site-btn">📦 ' + i.slice(0, 12) + '…</a>').join("") + '</div>';
 }
+
+// ===== 自定义输入弹窗（兼容移动端） =====
+function customPrompt(title, desc, defaultValue) {
+  return new Promise(function(resolve) {
+    promptTitle.textContent = title;
+    promptDesc.textContent = desc || "";
+    promptInput.value = defaultValue || "";
+    promptInput.placeholder = defaultValue || "";
+    promptInput.focus();
+    promptModal.classList.remove("hidden");
+
+    function cleanup() {
+      promptModal.classList.add("hidden");
+      btnConfirmPrompt.removeEventListener("click", onConfirm);
+      btnCancelPrompt.removeEventListener("click", onCancel);
+      btnClosePrompt.removeEventListener("click", onCancel);
+      promptModal.removeEventListener("click", onBackdrop);
+      promptInput.removeEventListener("keydown", onKeydown);
+    }
+    function onConfirm() {
+      var val = promptInput.value.trim();
+      cleanup();
+      resolve(val || "");
+    }
+    function onCancel() {
+      cleanup();
+      resolve(null);
+    }
+    function onBackdrop(e) {
+      if (e.target === promptModal) onCancel();
+    }
+    function onKeydown(e) {
+      if (e.key === "Enter") onConfirm();
+      if (e.key === "Escape") onCancel();
+    }
+    btnConfirmPrompt.addEventListener("click", onConfirm);
+    btnCancelPrompt.addEventListener("click", onCancel);
+    btnClosePrompt.addEventListener("click", onCancel);
+    promptModal.addEventListener("click", onBackdrop);
+    promptInput.addEventListener("keydown", onKeydown);
+  });
+}
+
+
 // ===== 首页 Banner =====
 function renderSetupBanner() {
   if (!setupBanner) return;
@@ -234,7 +280,7 @@ sectionsContainer.addEventListener("input", e => {
 });
 
 // ===== 事件委托: click =====
-sectionsContainer.addEventListener("click", e => {
+sectionsContainer.addEventListener("click", async e => {
   const t = e.target.closest("button");
   if (!t) return;
 
@@ -248,7 +294,7 @@ sectionsContainer.addEventListener("click", e => {
 
   if (t.classList.contains("zone-add-text")) {
     const si = parseInt(t.dataset.si);
-    const n = prompt("给文字区命名：", "新文字区");
+    const n = await customPrompt("文字区命名", "给文字区命名：", "新文字区");
     if (!n || !site.sections[si]) return;
     site.sections[si].textZones.push({ id: uid(), title: n, blocks: [] });
     renderSite(); scheduleSave(); return;
@@ -256,7 +302,7 @@ sectionsContainer.addEventListener("click", e => {
 
   if (t.classList.contains("zone-add-image")) {
     const si = parseInt(t.dataset.si);
-    const n = prompt("给图片区命名：", "新图片区");
+    const n = await customPrompt("图片区命名", "给图片区命名：", "新图片区");
     if (!n || !site.sections[si]) return;
     site.sections[si].imageZones.push({ id: uid(), title: n, images: [] });
     renderSite(); scheduleSave(); return;
@@ -297,7 +343,7 @@ sectionsContainer.addEventListener("click", e => {
 });
 
 // ===== 图片上传 =====
-sectionsContainer.addEventListener("click", e => {
+sectionsContainer.addEventListener("click", async e => {
   const trigger = e.target.closest(".img-add-trigger");
   if (!trigger) return;
   fileInput.dataset.si = trigger.dataset.si;
@@ -404,18 +450,18 @@ function renderTOC() {
 }
 
 // ===== 锁定/解锁 =====
-function handleLockAction() {
+async function handleLockAction() {
   if (!site) return;
   const hasPw = site.sitePassword && site.sitePassword.length > 0;
   if (!hasPw) {
-    const pw = prompt("设置站点密码（留空取消）：");
+    const pw = await customPrompt("设置密码", "设置站点密码（留空取消）：", "");
     if (pw === null) return;
     site.sitePassword = pw || "";
     siteUnlocked = false; siteTitleInput.disabled = !!site.sitePassword;
     renderSite(); scheduleSave(); showToast(pw ? "密码已设置" : "密码已清除"); return;
   }
   if (siteUnlocked) { siteUnlocked = false; siteTitleInput.disabled = true; renderSite(); return; }
-  const pw = prompt("请输入站点密码：");
+  const pw = await customPrompt("解锁", "请输入站点密码：", "");
   if (pw === null) return;
   if (pw === site.sitePassword) { siteUnlocked = true; siteTitleInput.disabled = false; renderSite(); showToast("🔓 解锁成功"); }
   else { showToast("❌ 密码错误"); }
@@ -458,9 +504,9 @@ btnCreateSite?.addEventListener("click", async () => {
 });
 
 // ===== 添加分区 =====
-function addSectionHandler() {
+async function addSectionHandler() {
   if (!siteId || !isOwner) return;
-  const n = prompt("给新分区命名：", "新分区");
+  const n = await customPrompt("新建分区", "给新分区命名：", "新分区");
   if (!n) return;
   site.sections.push({ id: uid(), title: n, textZones: [], imageZones: [] });
   renderSite(); scheduleSave();
