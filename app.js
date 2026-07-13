@@ -162,19 +162,15 @@ async function doSave() {
 async function initSettings() {
   const token = getGH();
   if (token) {
-    setupBanner.classList.add("hidden");
-    const t = await testGitHubToken(token);
-    if (t.ok) {
-      var _g = ghUserEl(); if(_g) _g.textContent = "GitHub: " + t.user;
-      btnCreateSite.disabled = false;
-    } else {
-      setupBanner.classList.remove("hidden");
-      tokenStatus.textContent = "Token 已失效，请重新配置";
-      btnCreateSite.disabled = true;
-    }
+    btnCreateSite.disabled = false;
+    setupBanner.innerHTML = '<div class="setup-info"><span class="gh-user">Token OK</span><button class="btn btn-xs btn-secondary" id="btn-open-settings">⚙️ 设置</button></div>';
+    var bs = setupBanner.querySelector("#btn-open-settings");
+    if (bs) bs.addEventListener("click", showSettingsModal);
   } else {
-    setupBanner.classList.remove("hidden");
+    setupBanner.innerHTML = '<div class="setup-prompt"><p>🔑 请先配置 GitHub 令牌，才能创建和编辑站点</p><button class="btn btn-primary btn-sm" id="btn-open-settings">配置 GitHub</button></div>';
     btnCreateSite.disabled = true;
+    var bs = setupBanner.querySelector("#btn-open-settings");
+    if (bs) bs.addEventListener("click", showSettingsModal);
   }
   renderSetupBanner();
 }
@@ -219,18 +215,12 @@ $("#settings-modal")?.addEventListener("click", (e) => {
 btnSaveToken?.addEventListener("click", async () => {
   const token = tokenInput.value.trim();
   if (!token) { tokenStatus.textContent = "请输入 Token"; return; }
-  tokenStatus.textContent = "验证中...";
-  const t = await testGitHubToken(token);
-  if (t.ok) {
-    setGH(token);
-    var _g = ghUserEl(); if(_g) _g.textContent = "GitHub: " + t.user;
-    tokenStatus.textContent = "✅ 验证成功！" + t.user;
-    btnCreateSite.disabled = false;
+  setGH(token);
+  tokenStatus.textContent = "✅ Token 已保存";
+  btnCreateSite.disabled = false;
+  setTimeout(function() {
     document.getElementById("settings-modal").classList.add("hidden");
-    renderSetupBanner();
-  } else {
-    tokenStatus.textContent = "❌ " + t.msg;
-  }
+  }, 800);
 });
 
 btnClearToken?.addEventListener("click", () => {
