@@ -268,26 +268,24 @@ function renderSite() {
 
     const secHead = document.createElement("div");
     secHead.className = "section-header";
-    var isUnlocked = !sec.password || unlockedSections[si];
-    var isSetPw = sec.password && sec.password.length > 0;
-    var lockBtnHtml = "";
-    if (isSetPw) {
-      lockBtnHtml = '<button class="btn btn-sm ' + (isUnlocked ? "btn-secondary" : "btn-secondary") + ' sec-lock" data-si="' + si + '" title="' + (isUnlocked ? "点击锁定" : "点击解锁") + '">' + (isUnlocked ? "\ud83d\udd13" : "\ud83d\udd12") + '</button>';
-    }
+    var hasPw = !!(sec.password && sec.password.length > 0);
+    var lockedState = hasPw && !unlockedSections[si];
+    var lockIcon = hasPw ? (lockedState ? "🔒" : "🔓") : "🔓";
+    var lockBtn = '<button class="btn btn-sm btn-secondary sec-lock" data-si="' + si + '">' + lockIcon + '</button>';
     var editHtml = "";
-    if (isUnlocked) {
+    if (lockedState) {
+      editHtml = '<span class="section-title-text">' + esc(sec.title) + '</span>'
+        + '<div class="section-actions">'
+        + lockBtn
+        + '<button class="btn btn-sm btn-secondary sec-lock-unlock" data-si="' + si + '">🔓 解锁</button>'
+        + '</div>';
+    } else {
       editHtml = '<input class="section-title" value="' + esc(sec.title) + '" placeholder="分区名称" data-si="' + si + '">'
         + '<div class="section-actions">'
-        + lockBtnHtml
+        + lockBtn
         + '<button class="btn btn-sm btn-secondary zone-add-text" data-si="' + si + '">＋ 文字区</button>'
         + '<button class="btn btn-sm btn-secondary zone-add-image" data-si="' + si + '">＋ 图片区</button>'
         + '<button class="btn btn-sm btn-danger sec-del" data-si="' + si + '" title="删除分区">✕</button>'
-        + '</div>';
-    } else {
-      editHtml = '<span class="section-title-text">' + esc(sec.title) + '</span>'
-        + '<div class="section-actions">'
-        + lockBtnHtml
-        + '<button class="btn btn-sm btn-secondary sec-lock-unlock" data-si="' + si + '">🔓 解锁</button>'
         + '</div>';
     }
     secHead.innerHTML = editHtml;
@@ -405,35 +403,27 @@ sectionsContainer.addEventListener("click", (e) => {
   if (!t) return;
 
 
-  // Lock / Unlock Section
+  // Lock / Unlock / Set Password Section
   if (t.classList.contains("sec-lock") || t.classList.contains("sec-lock-unlock")) {
     var si = parseInt(t.dataset.si);
     var sec = site.sections[si];
-    if (!sec.password) return;
-    if (unlockedSections[si]) {
-      unlockedSections[si] = false;
+    if (!sec) return;
+    if (!sec.password || sec.password.length === 0) {
+      var pw = prompt("设置分区密码（留空取消）：");
+      if (pw === null) return;
+      sec.password = pw || "";
+      if (sec.password) unlockedSections[si] = false;
       renderSite(); scheduleSave();
-      return;
-    }
-    var pw = prompt("请输入此分区的密码：");
-    if (pw === null) return;
-    if (unlockSection(si, pw)) {
-      showToast("解锁成功");
+      showToast(pw ? "密码已设置" : "密码已清除");
+    } else if (unlockedSections[si]) {
+      unlockedSections[si] = false;
+      renderSite();
     } else {
-      showToast("密码错误");
+      var pw = prompt("请输入此分区密码：");
+      if (pw === null) return;
+      if (unlockSection(si, pw)) { showToast("解锁成功"); }
+      else { showToast("密码错误"); }
     }
-    return;
-  }
-  
-  // Set Section Password
-  if (t.classList.contains("sec-set-pw")) {
-    var si = parseInt(t.dataset.si);
-    var sec = site.sections[si];
-    var pw = prompt("设置分区密码（留空取消）：");
-    if (pw === null) return;
-    sec.password = pw || "";
-    renderSite(); scheduleSave();
-    showToast(pw ? "密码已设置" : "密码已清除");
     return;
   }
 
