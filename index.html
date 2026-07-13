@@ -1,0 +1,119 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>永久存储 - 分区管理你的内容</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ========== 首页 ========== -->
+  <div id="page-home" class="page">
+    <div class="home-center">
+      <div class="home-logo">📦</div>
+      <h1 class="home-title">永久存储</h1>
+      <p class="home-desc">分区管理你的文字和图片，生成永久链接随时分享</p>
+
+      <!-- Setup Banner -->
+      <div id="setup-banner" class="setup-banner"></div>
+
+      <button id="btn-create-site" class="btn btn-primary btn-large" disabled>＋ 创建新站点</button>
+
+      <div class="home-owned" id="owned-list-home"></div>
+
+      <div class="home-help">
+        <p>💡 需要先配置 <a href="#" id="btn-settings-home">GitHub Token</a> 才能创建站点</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 站点页 ========== -->
+  <div id="page-site" class="page hidden">
+    <header class="site-header">
+      <div class="site-header-left">
+        <a href="/" class="site-logo">📦</a>
+        <h2 class="site-title">永久存储</h2>
+      </div>
+      <div class="site-header-right">
+        <button id="btn-add-section" class="btn btn-primary btn-sm">＋ 分区</button>
+        <button id="btn-share" class="btn btn-secondary btn-sm">🔗 分享</button>
+        <button id="btn-settings" class="btn btn-secondary btn-sm" title="设置">⚙️</button>
+        <span id="save-status" class="save-status"></span>
+      </div>
+    </header>
+
+    <div id="site-loading" class="site-loading">
+      <div class="spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <div id="site-error" class="site-error hidden">
+      <h2>😕 站点不存在</h2>
+      <p>链接可能已失效。</p>
+      <a href="/" class="btn btn-primary">创建新站点</a>
+    </div>
+
+    <div id="sections-container" class="sections-container hidden"></div>
+
+    <div id="site-footer-bar" class="site-footer-bar hidden">
+      <button id="btn-add-section-bottom" class="btn btn-secondary">＋ 添加新分区</button>
+    </div>
+  </div>
+
+  <!-- ========== 设置弹窗 ========== -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚙️ GitHub 配置</h3>
+        <button class="modal-close" id="btn-close-settings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">创建一个 <strong>GitHub Personal Access Token</strong>，只需 <strong>gist</strong> 权限</p>
+        <ol class="modal-steps">
+          <li>打开 <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a></li>
+          <li>Note 填 <code>perma-store</code></li>
+          <li>勾选 <code>gist</code>（只需这一个权限）</li>
+          <li>点 <strong>Generate token</strong>，复制那串密钥</li>
+        </ol>
+        <label class="modal-label">Token</label>
+        <input type="text" id="token-input" class="modal-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        <div id="token-status" class="token-status"></div>
+        <div class="modal-buttons">
+          <button id="btn-save-token" class="btn btn-primary">保存</button>
+          <button id="btn-test-token" class="btn btn-secondary" hidden>测试</button>
+          <button id="btn-clear-token" class="btn btn-danger btn-sm">清除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 分享弹窗 ========== -->
+  <div id="share-modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🔗 分享此站点</h3>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label">链接</label>
+        <div class="link-box">
+          <input type="text" id="share-link" readonly>
+          <button id="btn-copy-link" class="btn btn-sm">复制</button>
+        </div>
+        <label class="modal-label">扫二维码</label>
+        <div class="qr-wrap" id="qrcode"></div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="file-input" accept="image/*" multiple hidden>
+  <div id="toast" class="toast hidden"></div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
