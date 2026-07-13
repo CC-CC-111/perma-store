@@ -268,8 +268,8 @@ function renderSite() {
 
     const secHead = document.createElement("div");
     secHead.className = "section-header";
-    var hasPw = !!(sec.password && sec.password.length > 0);
-    var lockedState = hasPw && !unlockedSections[si];
+    var hasPw = !!(site.sitePassword && site.sitePassword.length > 0);
+    var lockedState = hasPw && !siteUnlocked;
     var lockIcon = hasPw ? (lockedState ? "🔒" : "🔓") : "🔓";
     var lockBtn = '<button class="btn btn-sm btn-secondary sec-lock" data-si="' + si + '">' + lockIcon + '</button>';
     var editHtml = "";
@@ -408,25 +408,24 @@ sectionsContainer.addEventListener("click", (e) => {
     var si = parseInt(t.dataset.si);
     var sec = site.sections[si];
     if (!sec) return;
-    if (!sec.password || sec.password.length === 0) {
-      var pw = prompt("设置分区密码（留空取消）：");
+    if (!site.sitePassword || site.sitePassword.length === 0) {
+      var pw = prompt("设置统一密码（留空取消）：");
       if (pw === null) return;
-      sec.password = pw || "";
-      if (sec.password) unlockedSections[si] = false;
+      site.sitePassword = pw || "";
+      if (site.sitePassword) siteUnlocked = false;
       renderSite(); scheduleSave();
       showToast(pw ? "密码已设置" : "密码已清除");
-    } else if (unlockedSections[si]) {
-      unlockedSections[si] = false;
+    } else if (siteUnlocked) {
+      siteUnlocked = false;
       renderSite();
     } else {
-      var pw = prompt("请输入此分区密码：");
+      var pw = prompt("请输入密码：");
       if (pw === null) return;
-      if (unlockSection(si, pw)) { showToast("解锁成功"); }
+      if (checkSitePw(pw)) { siteUnlocked = true; showToast("解锁成功"); }
       else { showToast("密码错误"); }
     }
     return;
   }
-
   // Delete Section
   if (t.classList.contains("sec-del")) {
     const si = parseInt(t.dataset.si);
@@ -572,19 +571,9 @@ function toggleSearch() {
 
 
 // ---- Lock state ----
-var unlockedSections = {};
 var siteUnlocked = false;
 
-function isSectionUnlocked(si) {
-  return !site.sections[si].password || unlockedSections[si];
-}
-
-function unlockSection(si, pw) {
-  if (site.sections[si].password === pw) {
-    unlockedSections[si] = true;
-    renderSite();
-    return true;
-  }
+function checkSitePw(pw) { return site.sitePassword === pw; }
   return false;
 }
 
@@ -790,7 +779,7 @@ function addSectionHandler() {
   if (!siteId || !isOwner) return;
   const name = prompt("给新分区命名：", "新分区");
   if (!name) return;
-  site.sections.push({ id: uid(), title: name, password: "", textZones: [], imageZones: [] });
+  site.sections.push({ id: uid(), title: name, textZones: [], imageZones: [] });
   renderSite(); scheduleSave();
 }
 btnAddSection?.addEventListener("click", addSectionHandler);
