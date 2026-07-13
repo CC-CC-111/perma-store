@@ -614,14 +614,26 @@ function renderTOC() {
 // SHARE
 // ============================================================
 
-btnShare.addEventListener("click", () => {
+btnShare.addEventListener("click", async () => {
   if (!siteId) return;
-  const link = `${window.location.origin}${window.location.pathname}?id=${siteId}`;
+  var link = window.location.origin + window.location.pathname + "?id=" + siteId;
   shareLink.value = link;
-  qrContainer.innerHTML = "";
+  qrContainer.innerHTML = "<p style='color:#999;font-size:13px;text-align:center;padding:20px'>加载二维码...</p>";
   try {
+    if (typeof QRCode === "undefined") {
+      await new Promise(function(resolve, reject) {
+        var s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    qrContainer.innerHTML = "";
     new QRCode(qrContainer, { text: link, width: 160, height: 160, colorDark: "#1a1a2e", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
-  } catch {}
+  } catch(e) {
+    qrContainer.innerHTML = "<p style='color:#999;font-size:13px;text-align:center;padding:20px'>二维码加载失败，复制链接即可</p>";
+  }
   shareModal.classList.remove("hidden");
 });
 
