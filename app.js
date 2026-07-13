@@ -591,9 +591,13 @@ function addSectionHandler() {
 btnAddSection?.addEventListener("click", addSectionHandler);
 btnAddSectionBottom?.addEventListener("click", addSectionHandler);
 
+if (document.getElementById("btn-settings-home")) {
+  document.getElementById("btn-settings-home").addEventListener("click", (e) => { e.preventDefault(); showSettingsModal(); });
+}
 if (btnSettings) {
   btnSettings.addEventListener("click", showSettingsModal);
 }
 
 window.addEventListener("popstate", () => location.reload());
 document.addEventListener("DOMContentLoaded", init);
+
