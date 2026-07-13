@@ -105,7 +105,7 @@ const tokenInput = $("#token-input");
 const btnSaveToken = $("#btn-save-token");
 const btnTestToken = $("#btn-test-token");
 const tokenStatus = $("#token-status");
-const ghUser = $("#gh-user");
+function ghUserEl() { return document.getElementById("gh-user"); }
 const btnClearToken = $("#btn-clear-token");
 const ownedListHome = $("#owned-list-home");
 
@@ -165,7 +165,7 @@ async function initSettings() {
     setupBanner.classList.add("hidden");
     const t = await testGitHubToken(token);
     if (t.ok) {
-      ghUser.textContent = "GitHub: " + t.user;
+      var _g = ghUserEl(); if(_g) _g.textContent = "GitHub: " + t.user;
       btnCreateSite.disabled = false;
     } else {
       setupBanner.classList.remove("hidden");
@@ -186,7 +186,7 @@ function renderSetupBanner() {
   if (token) {
     setupBanner.innerHTML = `
       <div class="setup-info">
-        <span id="gh-user" class="gh-user">${ghUser.textContent || "已配置"}</span>
+        <span id="gh-user" class="gh-user">${(ghUserEl() ? ghUserEl().textContent : "") || "已配置"}</span>
         <button class="btn btn-xs btn-secondary" id="btn-open-settings">⚙️ 设置</button>
       </div>`;
     setupBanner.querySelector("#btn-open-settings")?.addEventListener("click", showSettingsModal);
@@ -223,7 +223,7 @@ btnSaveToken?.addEventListener("click", async () => {
   const t = await testGitHubToken(token);
   if (t.ok) {
     setGH(token);
-    ghUser.textContent = "GitHub: " + t.user;
+    var _g = ghUserEl(); if(_g) _g.textContent = "GitHub: " + t.user;
     tokenStatus.textContent = "✅ 验证成功！" + t.user;
     btnCreateSite.disabled = false;
     document.getElementById("settings-modal").classList.add("hidden");
@@ -235,7 +235,7 @@ btnSaveToken?.addEventListener("click", async () => {
 
 btnClearToken?.addEventListener("click", () => {
   setGH("");
-  ghUser.textContent = "";
+  var _g = ghUserEl(); if(_g) _g.textContent = "";
   btnCreateSite.disabled = true;
   document.getElementById("settings-modal").classList.add("hidden");
   renderSetupBanner();
@@ -600,4 +600,5 @@ if (btnSettings) {
 
 window.addEventListener("popstate", () => location.reload());
 document.addEventListener("DOMContentLoaded", init);
+
 
