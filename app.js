@@ -268,14 +268,29 @@ function renderSite() {
 
     const secHead = document.createElement("div");
     secHead.className = "section-header";
-    secHead.innerHTML = `
-      <input class="section-title" value="${esc(sec.title)}" placeholder="分区名称" data-si="${si}">
-      <div class="section-actions">
-        <button class="btn btn-sm btn-secondary zone-add-text" data-si="${si}">＋ 文字区</button>
-        <button class="btn btn-sm btn-secondary zone-add-image" data-si="${si}">＋ 图片区</button>
-        <button class="btn btn-sm btn-danger sec-del" data-si="${si}" title="删除分区">✕</button>
-      </div>
-    `;
+    var isUnlocked = !sec.password || unlockedSections[si];
+    var isSetPw = sec.password && sec.password.length > 0;
+    var lockBtnHtml = "";
+    if (isSetPw) {
+      lockBtnHtml = '<button class="btn btn-sm ' + (isUnlocked ? "btn-secondary" : "btn-secondary") + ' sec-lock" data-si="' + si + '" title="' + (isUnlocked ? "点击锁定" : "点击解锁") + '">' + (isUnlocked ? "\ud83d\udd13" : "\ud83d\udd12") + '</button>';
+    }
+    var editHtml = "";
+    if (isUnlocked) {
+      editHtml = '<input class="section-title" value="' + esc(sec.title) + '" placeholder="分区名称" data-si="' + si + '">'
+        + '<div class="section-actions">'
+        + lockBtnHtml
+        + '<button class="btn btn-sm btn-secondary zone-add-text" data-si="' + si + '">＋ 文字区</button>'
+        + '<button class="btn btn-sm btn-secondary zone-add-image" data-si="' + si + '">＋ 图片区</button>'
+        + '<button class="btn btn-sm btn-danger sec-del" data-si="' + si + '" title="删除分区">✕</button>'
+        + '</div>';
+    } else {
+      editHtml = '<span class="section-title-text">' + esc(sec.title) + '</span>'
+        + '<div class="section-actions">'
+        + lockBtnHtml
+        + '<button class="btn btn-sm btn-secondary sec-lock-unlock" data-si="' + si + '">🔓 解锁</button>'
+        + '</div>';
+    }
+    secHead.innerHTML = editHtml;
     secDiv.appendChild(secHead);
 
     const zonesDiv = document.createElement("div");
@@ -388,6 +403,39 @@ sectionsContainer.addEventListener("input", (e) => {
 sectionsContainer.addEventListener("click", (e) => {
   const t = e.target.closest("button");
   if (!t) return;
+
+
+  // Lock / Unlock Section
+  if (t.classList.contains("sec-lock") || t.classList.contains("sec-lock-unlock")) {
+    var si = parseInt(t.dataset.si);
+    var sec = site.sections[si];
+    if (!sec.password) return;
+    if (unlockedSections[si]) {
+      unlockedSections[si] = false;
+      renderSite(); scheduleSave();
+      return;
+    }
+    var pw = prompt("请输入此分区的密码：");
+    if (pw === null) return;
+    if (unlockSection(si, pw)) {
+      showToast("解锁成功");
+    } else {
+      showToast("密码错误");
+    }
+    return;
+  }
+  
+  // Set Section Password
+  if (t.classList.contains("sec-set-pw")) {
+    var si = parseInt(t.dataset.si);
+    var sec = site.sections[si];
+    var pw = prompt("设置分区密码（留空取消）：");
+    if (pw === null) return;
+    sec.password = pw || "";
+    renderSite(); scheduleSave();
+    showToast(pw ? "密码已设置" : "密码已清除");
+    return;
+  }
 
   // Delete Section
   if (t.classList.contains("sec-del")) {
@@ -530,6 +578,33 @@ function toggleSearch() {
     searchInput.value = "";
     clearSearch();
   }
+}
+
+
+// ---- Lock state ----
+var unlockedSections = {};
+var siteUnlocked = false;
+
+function isSectionUnlocked(si) {
+  return !site.sections[si].password || unlockedSections[si];
+}
+
+function unlockSection(si, pw) {
+  if (site.sections[si].password === pw) {
+    unlockedSections[si] = true;
+    renderSite();
+    return true;
+  }
+  return false;
+}
+
+function unlockSite(pw) {
+  if (site.sitePassword === pw) {
+    siteUnlocked = true;
+    renderSite();
+    return true;
+  }
+  return false;
 }
 
 function clearSearch() {
@@ -675,11 +750,14 @@ async function init() {
     try {
       const data = await gistGet(id);
       site = data;
+      site.title = site.title || "WT";
       siteId = id;
       site.id = data.id || id;
       isOwner = hasGH();
       siteLoading.classList.add("hidden");
       renderSite();
+      siteTitleInput.value = site.title || "WT";
+      siteTitleInput.disabled = !!(site.sitePassword && !siteUnlocked);
 
       // Bind search & TOC events
       if (btnSearch) btnSearch.addEventListener("click", toggleSearch);
@@ -708,7 +786,7 @@ async function init() {
 btnCreateSite.addEventListener("click", async () => {
   if (!hasGH()) { showToast("请先配置 GitHub Token"); return; }
   try {
-    const empty = { id: "", sections: [], createdAt: Date.now(), updatedAt: Date.now() };
+    const empty = { id: "", title: "WT", sitePassword: "", sections: [], createdAt: Date.now(), updatedAt: Date.now() };
     const gistId = await gistCreate(empty);
     addOwned(gistId);
     window.location.search = "?id=" + gistId;
@@ -722,10 +800,43 @@ function addSectionHandler() {
   if (!siteId || !isOwner) return;
   const name = prompt("给新分区命名：", "新分区");
   if (!name) return;
-  site.sections.push({ id: uid(), title: name, textZones: [], imageZones: [] });
+  site.sections.push({ id: uid(), title: name, password: "", textZones: [], imageZones: [] });
   renderSite(); scheduleSave();
 }
 btnAddSection?.addEventListener("click", addSectionHandler);
+
+  // ---- Site unlock handler ----
+  var stLock = document.getElementById("btn-site-lock");
+  if (stLock) {
+    stLock.addEventListener("click", function() {
+      if (!site || !site.sitePassword) {
+        var pw = prompt("设置站点密码（留空取消）：");
+        if (pw === null) return;
+        site.sitePassword = pw || "";
+        scheduleSave();
+        showToast(pw ? "站点密码已设置" : "站点密码已清除");
+        siteUnlocked = !site.sitePassword;
+        siteTitleInput.disabled = !!(site.sitePassword && !siteUnlocked);
+        renderSite();
+        return;
+      }
+      if (siteUnlocked) {
+        siteUnlocked = false;
+        siteTitleInput.disabled = true;
+        renderSite();
+        return;
+      }
+      var pw = prompt("请输入站点密码：");
+      if (pw === null) return;
+      if (unlockSite(pw)) {
+        siteTitleInput.disabled = false;
+        showToast("站点已解锁");
+      } else {
+        showToast("密码错误");
+      }
+    });
+  }
+
 btnAddSectionBottom?.addEventListener("click", addSectionHandler);
 
 if (document.getElementById("btn-settings-home")) {

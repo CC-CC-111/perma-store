@@ -263,3 +263,13 @@ body{
 
 /* ===== Section Search Highlight ===== */
 .section-highlight{border-color:#6366f1!important;box-shadow:0 0 0 2px rgba(99,102,241,.2)}
+/* ===== Lock / Unlock ===== */
+.section-title-text{
+  font-size:16px;font-weight:600;color:#1a1a2e;padding:4px 0;flex:1;min-width:80px
+}
+.site-title-input:disabled{
+  background:#f3f4f6;color:#6b7280;cursor:not-allowed
+}
+.section-title:disabled{
+  background:#f3f4f6;color:#6b7280;cursor:not-allowed
+}
