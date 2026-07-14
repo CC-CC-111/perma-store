@@ -162,7 +162,7 @@ function setSaveStatus(state) {
 }
 
 function scheduleSave() {
-  if (!siteId || !isOwner) return;
+  if (!siteId) return;
   pendingSave = true;
   setSaveStatus("saving");
   clearTimeout(saveTimer);
@@ -172,6 +172,11 @@ function scheduleSave() {
 async function doSave() {
   if (!pendingSave) return;
   pendingSave = false;
+  if (!hasToken()) {
+    setSaveStatus("error");
+    showToast("需要配置 GitHub Token 才能保存更改");
+    return;
+  }
   try {
     site.updatedAt = Date.now();
     await gistUpdate(siteId, site);
@@ -957,7 +962,7 @@ btnCreateSite?.addEventListener("click", async () => {
 
 // ===== 添加分区 =====
 async function addSectionHandler() {
-  if (!siteId || !isOwner) return;
+  if (!siteId || !siteUnlocked) return;
   const n = await customPrompt("新建分区", "给新分区命名：", "新分区");
   if (!n) return;
   site.sections.push({
