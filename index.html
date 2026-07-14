@@ -1,144 +1,125 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>永久存储 · PermaStore</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>永久存储 · PermaStore</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="app">
 
-<div class="app" id="app">
-
-  <!-- ============ 首页 ============ -->
-  <div id="page-home" class="page">
+  <!-- ============== 首页 ============== -->
+  <div id="page-home">
     <div class="home-center">
       <div class="home-logo">📦</div>
       <h1 class="home-title">永久存储</h1>
-      <p class="home-desc">分区管理你的文字和图片，生成永久链接随时分享</p>
+      <p class="home-desc">分区管理文字和图片，生成永久链接分享</p>
 
       <div id="setup-banner" class="setup-banner"></div>
 
-      <button id="btn-create-site" class="btn btn-primary btn-large" disabled>
-        ＋ 创建新站点
-      </button>
+      <button id="btn-create-site" class="btn btn-primary btn-large">＋ 创建新站点</button>
 
-      <div id="owned-list-home" class="home-owned"></div>
+      <div id="owned-list-home"></div>
 
       <div class="home-help">
-        <p>💡 需要先配置 <a href="#" id="btn-settings-home">GitHub Token</a> 才能创建站点</p>
+        需要先 <a id="btn-settings-home">配置 GitHub Token</a>
       </div>
     </div>
   </div>
 
-  <!-- ============ 站点页 ============ -->
-  <div id="page-site" class="page hidden">
-    <header class="site-header">
+  <!-- ============== 站点页 ============== -->
+  <div id="page-site" class="hidden">
+    <div class="site-header">
       <div class="site-header-left">
-        <a href="/" class="site-logo">📦</a>
-        <input type="text" id="site-title" class="site-title-input"
-               placeholder="站点名称" maxlength="60">
-        <button id="btn-site-lock" class="btn btn-xs btn-secondary"
-                title="站点锁定 / 解锁">🔓</button>
+        <a class="site-logo" href="?">📦</a>
+        <input id="site-title" class="site-title-input" value="我的站点" placeholder="站点名称">
       </div>
       <div class="site-header-right">
-        <button id="btn-search" class="btn btn-secondary btn-icon btn-icon-large"
-                title="搜索">🔍</button>
-        <button id="btn-toc" class="btn btn-secondary btn-icon btn-icon-large"
-                title="目录">📋</button>
-        <button id="btn-add-section" class="btn btn-primary btn-sm">＋ 分区</button>
-        <button id="btn-share" class="btn btn-secondary btn-sm">🔗 分享</button>
-        <button id="btn-settings" class="btn btn-secondary btn-sm" title="设置">⚙️</button>
         <span id="save-status" class="save-status"></span>
+        <button id="btn-search" class="btn-icon" title="搜索">🔍</button>
+        <button id="btn-toc" class="btn-icon" title="目录">📋</button>
+        <button id="btn-site-lock" class="btn-icon" title="锁定">🔓</button>
+        <button id="btn-add-section" class="btn btn-sm btn-secondary" title="添加分区">＋</button>
+        <button id="btn-share" class="btn-icon" title="分享">🔗</button>
+        <button id="btn-settings" class="btn-icon" title="设置">⚙️</button>
       </div>
-    </header>
+    </div>
 
-    <!-- 搜索栏 -->
     <div id="search-bar" class="search-bar hidden">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" class="search-input"
-             placeholder="搜索分区或区域名称…" autocomplete="off">
-      <button id="btn-search-close" class="btn btn-xs btn-secondary">✕</button>
+      <input id="search-input" class="search-input" placeholder="搜索分区或区域...">
       <span id="search-count" class="search-count"></span>
+      <button id="btn-search-close" class="btn-icon" title="关闭搜索">✕</button>
     </div>
 
     <div id="site-loading" class="site-loading">
       <div class="spinner"></div>
-      <p>加载中…</p>
+      <p>加载中...</p>
     </div>
 
     <div id="site-error" class="site-error hidden">
-      <h2>😕 站点不存在</h2>
-      <p>链接可能已失效，或 Gist 已被删除。</p>
-      <a href="/" class="btn btn-primary">返回首页</a>
+      <h2>😕 加载失败</h2>
+      <p>无法获取该站点数据，请检查链接是否正确。</p>
+      <a class="btn btn-primary" href="?">返回首页</a>
     </div>
 
     <div id="sections-container" class="sections-container hidden"></div>
 
     <div id="site-footer-bar" class="site-footer-bar hidden">
-      <button id="btn-add-section-bottom" class="btn btn-secondary">
-        ＋ 添加新分区
-      </button>
+      <button id="btn-add-section-bottom" class="btn btn-secondary btn-sm">＋ 添加分区</button>
     </div>
   </div>
 
-  <!-- ============ 设置弹窗 ============ -->
+  <!-- ============== 设置弹窗 ============== -->
   <div id="settings-modal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-header">
         <h3>⚙️ GitHub 配置</h3>
-        <button class="modal-close" id="btn-close-settings">&times;</button>
+        <button id="btn-close-settings" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">
-          创建一个 <strong>GitHub Personal Access Token</strong>，
-          只需 <strong>gist</strong> 权限。
-        </p>
+        <p class="modal-desc">创建 GitHub Personal Access Token（仅需 gist 权限）：</p>
         <ol class="modal-steps">
-          <li>打开
-            <a href="https://github.com/settings/tokens/new?description=perma-store&scopes=gist"
-               target="_blank">github.com/settings/tokens/new</a>
-          </li>
-          <li>勾选 <code>gist</code>（只需这一个权限）</li>
-          <li>点 <strong>Generate token</strong>，复制那串密钥</li>
+          <li>打开 <code>github.com/settings/tokens</code></li>
+          <li>点击 <code>Generate new token (classic)</code></li>
+          <li>勾选 <code>gist</code> 权限</li>
+          <li>生成并复制 Token</li>
         </ol>
-        <label class="modal-label">GitHub Token</label>
-        <input type="password" id="token-input" class="modal-input"
-               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" spellcheck="false">
+        <label class="modal-label">Token</label>
+        <input id="token-input" class="modal-input" type="password" placeholder="ghp_xxxxxxxx">
         <div id="token-status" class="token-status"></div>
         <div class="modal-buttons">
           <button id="btn-save-token" class="btn btn-primary">保存</button>
-          <button id="btn-clear-token" class="btn btn-danger btn-sm">清除</button>
+          <button id="btn-clear-token" class="btn btn-danger">清除</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ============ 分享弹窗 ============ -->
+  <!-- ============== 分享弹窗 ============== -->
   <div id="share-modal" class="modal-backdrop hidden">
     <div class="modal">
       <div class="modal-header">
         <h3>🔗 分享此站点</h3>
-        <button class="modal-close" id="btn-close-share">&times;</button>
+        <button id="btn-close-share" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
-        <label class="modal-label">永久链接</label>
         <div class="link-box">
-          <input type="text" id="share-link" readonly>
-          <button id="btn-copy-link" class="btn btn-sm">复制</button>
+          <input id="share-link" readonly>
+          <button id="btn-copy-link" class="btn btn-primary btn-sm">复制</button>
         </div>
-        <label class="modal-label">扫二维码</label>
-        <div class="qr-wrap" id="qrcode"></div>
+        <div id="qrcode" class="qr-wrap"></div>
       </div>
     </div>
   </div>
 
-  <!-- ============ 目录弹窗 ============ -->
-  <div id="toc-modal" class="modal-backdrop hidden">
-    <div class="modal toc-modal">
+  <!-- ============== 目录弹窗 ============== -->
+  <div id="toc-modal" class="modal-backdrop hidden toc-modal">
+    <div class="modal">
       <div class="modal-header">
         <h3>📋 目录</h3>
-        <button class="modal-close" id="btn-close-toc">&times;</button>
+        <button id="btn-close-toc" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
         <div id="toc-list" class="toc-list"></div>
@@ -147,29 +128,31 @@
     </div>
   </div>
 
-    <!-- ============ 输入弹窗 ============ -->
+  <!-- ============== 输入弹窗 ============== -->
   <div id="prompt-modal" class="modal-backdrop hidden">
-    <div class="modal">
+    <div class="modal" style="max-width:360px">
       <div class="modal-header">
         <h3 id="prompt-title">输入</h3>
-        <button class="modal-close" id="btn-close-prompt">&times;</button>
+        <button id="btn-close-prompt" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
         <p id="prompt-desc" class="modal-desc"></p>
-        <input type="text" id="prompt-input" class="modal-input" placeholder="">
-        <div class="modal-buttons" style="justify-content:flex-end">
-          <button class="btn btn-secondary" id="btn-cancel-prompt">取消</button>
-          <button class="btn btn-primary" id="btn-confirm-prompt">确定</button>
+        <input id="prompt-input" class="modal-input">
+        <div class="modal-buttons">
+          <button id="btn-confirm-prompt" class="btn btn-primary">确定</button>
+          <button id="btn-cancel-prompt" class="btn btn-secondary">取消</button>
         </div>
       </div>
     </div>
   </div>
 
-  <input type="file" id="file-input" accept="image/*" multiple hidden>
+  <!-- ============== 隐藏文件输入 ============== -->
+  <input id="file-input" type="file" accept="image/*" multiple class="hidden">
+
+  <!-- ============== Toast ============== -->
   <div id="toast" class="toast hidden"></div>
 
 </div>
-
 <script src="app.js"></script>
 </body>
 </html>

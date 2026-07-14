@@ -1,13 +1,17 @@
-﻿/* ============================================================
+/* ============================================================
    永久存储 · PermaStore — Styles
    ============================================================ */
 
 /* ---------- Reset ---------- */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-               "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+    "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
   background: #f0f2f5;
   color: #1a1a2e;
   min-height: 100vh;
@@ -38,7 +42,10 @@ body {
   max-width: 460px;
 }
 
-.home-logo { font-size: 64px; margin-bottom: 12px; }
+.home-logo {
+  font-size: 64px;
+  margin-bottom: 12px;
+}
 
 .home-title {
   font-size: 32px;
@@ -54,7 +61,19 @@ body {
 }
 
 /* ---------- 首页设置提示 ---------- */
-.setup-banner { margin-bottom: 20px; }
+.setup-banner {
+  margin-bottom: 20px;
+}
+
+.banner-warn {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  color: #92400e;
+}
 
 .setup-prompt {
   background: #fef3c7;
@@ -81,7 +100,10 @@ body {
   gap: 10px;
 }
 
-.gh-user { font-size: 13px; color: #4338ca; }
+.gh-user {
+  font-size: 13px;
+  color: #4338ca;
+}
 
 .home-help {
   margin-top: 20px;
@@ -96,26 +118,20 @@ body {
 }
 
 /* ---------- 已有站点列表 ---------- */
-.home-owned {
+.owned-section {
   margin-top: 40px;
   padding-top: 28px;
   border-top: 1px solid #e5e7eb;
 }
 
-.home-owned h3 {
+.owned-section h3 {
   font-size: 15px;
   color: #666;
   margin-bottom: 12px;
 }
 
-#owned-sites-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-
-.owned-site-btn {
+.owned-link {
+  display: inline-block;
   padding: 8px 16px;
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -125,9 +141,10 @@ body {
   color: #374151;
   text-decoration: none;
   transition: border-color 0.2s;
+  margin: 4px;
 }
 
-.owned-site-btn:hover {
+.owned-link:hover {
   border-color: #6366f1;
   color: #6366f1;
 }
@@ -178,7 +195,6 @@ body {
   border-bottom: 2px solid #6366f1;
   margin-bottom: -2px;
 }
-
 .site-title-input:disabled {
   background: #f3f4f6;
   color: #6b7280;
@@ -200,10 +216,9 @@ body {
   text-align: right;
   transition: color 0.3s;
 }
-
-.save-status.saved { color: #22c55e; }
-.save-status.saving { color: #f59e0b; }
-.save-status.error { color: #ef4444; }
+.save-status.saved   { color: #22c55e; }
+.save-status.saving  { color: #f59e0b; }
+.save-status.error   { color: #ef4444; }
 
 /* ============== 按钮 ============== */
 .btn {
@@ -222,24 +237,24 @@ body {
   white-space: nowrap;
   line-height: 1.4;
 }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary { background: #6366f1; color: #fff; }
+.btn-primary   { background: #6366f1; color: #fff; }
 .btn-primary:hover:not(:disabled) { background: #4f46e5; }
 
 .btn-secondary { background: #e5e7eb; color: #374151; }
 .btn-secondary:hover:not(:disabled) { background: #d1d5db; }
 
-.btn-danger { background: #fee2e2; color: #dc2626; }
+.btn-danger    { background: #fee2e2; color: #dc2626; }
 .btn-danger:hover:not(:disabled) { background: #fecaca; }
 
-.btn-sm { padding: 6px 14px; font-size: 13px; }
-.btn-xs { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
-.btn-large { padding: 14px 36px; font-size: 17px; border-radius: 12px; }
+.btn-sm   { padding: 6px 14px; font-size: 13px; }
+.btn-xs   { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+.btn-large{ padding: 14px 36px; font-size: 17px; border-radius: 12px; }
+
+/* alias: JS 中使用 btn-small */
+.btn-small { padding: 5px 12px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer; background: #f3f4f6; color: #374151; transition: all 0.2s; }
+.btn-small:hover { background: #e5e7eb; }
 
 .btn-icon {
   width: 36px;
@@ -250,7 +265,12 @@ body {
   justify-content: center;
   border-radius: 6px;
   font-size: 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.btn-icon:hover { background: #f3f4f6; }
 
 /* ============== 分区卡片 ============== */
 .sections-container { flex: 1; }
@@ -258,14 +278,14 @@ body {
 .section {
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   margin-bottom: 16px;
   overflow: hidden;
 }
 
 .section-highlight {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  border: 2px solid #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
 }
 
 .section-hidden { display: none !important; }
@@ -291,12 +311,10 @@ body {
   min-width: 80px;
   color: #1a1a2e;
 }
-
 .section-title:focus {
   border-bottom: 2px solid #6366f1;
   margin-bottom: -2px;
 }
-
 .section-title:disabled {
   background: #f3f4f6;
   color: #6b7280;
@@ -328,7 +346,6 @@ body {
   margin-bottom: 12px;
   overflow: hidden;
 }
-
 .zone:last-child { margin-bottom: 0; }
 
 .zone-header {
@@ -353,10 +370,13 @@ body {
   min-width: 60px;
   color: #374151;
 }
-
 .zone-title:focus {
   border-bottom: 2px solid #6366f1;
   margin-bottom: -2px;
+}
+.zone-title:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
 .zone-actions {
@@ -375,7 +395,6 @@ body {
   margin-bottom: 8px;
   overflow: hidden;
 }
-
 .block:last-child { margin-bottom: 0; }
 
 .block textarea {
@@ -409,12 +428,10 @@ body {
   transition: all 0.2s;
   margin-top: 6px;
 }
-
 .block-add-new:hover {
   border-color: #6366f1;
   background: #f0f0ff;
 }
-
 .block-add-new button {
   width: 100%;
   padding: 10px;
@@ -424,7 +441,6 @@ body {
   color: #666;
   cursor: pointer;
 }
-
 .block-add-new button:hover { color: #6366f1; }
 
 /* ============== 图片网格 ============== */
@@ -433,6 +449,7 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 8px;
   margin-bottom: 8px;
+  padding: 10px 14px;
 }
 
 .image-item {
@@ -475,18 +492,10 @@ body {
   line-height: 1;
 }
 
-.img-copy-btn {
-  background: rgba(255, 255, 255, 0.9);
-  color: #374151;
-}
-
+.img-copy-btn { background: rgba(255,255,255,0.9); color: #374151; }
 .img-copy-btn:hover { background: #fff; color: #6366f1; }
 
-.img-del-btn {
-  background: rgba(239, 68, 68, 0.8);
-  color: #fff;
-}
-
+.img-del-btn { background: rgba(239,68,68,0.8); color: #fff; }
 .img-del-btn:hover { background: #dc2626; }
 
 .image-add-area {
@@ -501,12 +510,10 @@ body {
   justify-content: center;
   min-height: 80px;
 }
-
 .image-add-area:hover {
   border-color: #6366f1;
   background: #f0f0ff;
 }
-
 .image-add-area span { font-size: 24px; color: #999; }
 .image-add-area:hover span { color: #6366f1; }
 
@@ -544,13 +551,13 @@ body {
   flex: 1;
 }
 .site-error h2 { font-size: 22px; margin-bottom: 10px; }
-.site-error p { color: #666; margin-bottom: 20px; }
+.site-error p  { color: #666; margin-bottom: 20px; }
 
 /* ============== 弹窗 ============== */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0,0,0,0.4);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -563,7 +570,7 @@ body {
   border-radius: 14px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -575,7 +582,10 @@ body {
   padding: 18px 20px 0;
 }
 
-.modal-header h3 { font-size: 17px; font-weight: 600; }
+.modal-header h3 {
+  font-size: 17px;
+  font-weight: 600;
+}
 
 .modal-close {
   background: none;
@@ -586,7 +596,6 @@ body {
   padding: 0;
   line-height: 1;
 }
-
 .modal-close:hover { color: #374151; }
 
 .modal-body { padding: 16px 20px 20px; }
@@ -605,9 +614,7 @@ body {
   margin: 0 0 16px 18px;
   padding: 0;
 }
-
 .modal-steps li { margin-bottom: 4px; }
-
 .modal-steps code {
   background: #f3f4f6;
   padding: 1px 5px;
@@ -632,10 +639,9 @@ body {
   outline: none;
   margin-bottom: 8px;
 }
-
 .modal-input:focus {
   border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
 }
 
 .token-status {
@@ -673,14 +679,21 @@ body {
   justify-content: center;
   padding: 10px 0;
 }
+.qr-wrap img, .qr-wrap canvas { display: block; }
 
-.qr-wrap img,
-.qr-wrap canvas { display: block; }
+.qr-loading, .qr-error {
+  font-size: 14px;
+  color: #999;
+  padding: 20px;
+}
 
 /* 目录弹窗 */
 .toc-modal .modal { max-width: 380px; }
 
-.toc-list { max-height: 60vh; overflow-y: auto; }
+.toc-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
 
 .toc-item {
   display: flex;
@@ -692,7 +705,6 @@ body {
   transition: background 0.15s;
   border-radius: 6px;
 }
-
 .toc-item:hover { background: #f3f4f6; }
 
 .toc-item-name {
@@ -726,10 +738,9 @@ body {
   border-radius: 10px;
   font-size: 14px;
   z-index: 999;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   transition: opacity 0.3s, transform 0.3s;
 }
-
 .toast.hidden {
   opacity: 0;
   transform: translateX(-50%) translateY(12px);
@@ -759,10 +770,9 @@ body {
   outline: none;
   transition: border-color 0.2s;
 }
-
 .search-input:focus {
   border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
 }
 
 .search-count {
@@ -774,32 +784,21 @@ body {
 /* ============== 响应式 ============== */
 @media (max-width: 640px) {
   .app { padding: 0 12px; }
-
   .section-header {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
-
   .section-actions { justify-content: flex-end; }
   .zone-header { flex-wrap: wrap; }
-
-  .site-header {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
+  .site-header { flex-wrap: wrap; gap: 6px; }
   .site-header-right {
     flex-wrap: wrap;
     gap: 4px;
     width: 100%;
     justify-content: flex-end;
   }
-
   .btn-sm { padding: 5px 10px; font-size: 12px; }
   .images-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
-
-  .site-header-left {
-    flex-wrap: wrap;
-  }
+  .site-header-left { flex-wrap: wrap; }
 }
