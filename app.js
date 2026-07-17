@@ -1005,8 +1005,8 @@ function loadSheetJS() {
 }
 
 btnImportExcel?.addEventListener("click", () => {
-  if (!siteId || !siteUnlocked) {
-    showToast("请先解锁站点");
+  if (!siteId) {
+    showToast("请先打开一个站点");
     return;
   }
   excelFileInput.click();
@@ -1016,6 +1016,11 @@ excelFileInput?.addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   excelFileInput.value = "";
+
+  if (!siteUnlocked) {
+    showToast("请先解锁站点再导入");
+    return;
+  }
 
   showToast("正在解析表格...");
 
