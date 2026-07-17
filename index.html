@@ -41,9 +41,15 @@
         <button id="btn-toc" class="btn-icon" title="目录">📋</button>
         <button id="btn-site-lock" class="btn-icon" title="锁定">🔓</button>
         <button id="btn-add-section" class="btn btn-sm btn-secondary" title="添加分区">＋</button>
+        <button id="btn-import-excel" class="btn-icon" title="导入表格">📊</button>
         <button id="btn-share" class="btn-icon" title="分享">🔗</button>
         <button id="btn-settings" class="btn-icon" title="设置">⚙️</button>
       </div>
+    </div>
+
+    <div id="site-token-banner" class="site-token-banner hidden">
+      <span>🔑 未配置 Token，编辑后无法保存</span>
+      <button id="btn-site-configure-token" class="btn btn-xs btn-primary">配置 Token</button>
     </div>
 
     <div id="search-bar" class="search-bar hidden">
@@ -148,6 +154,7 @@
 
   <!-- ============== 隐藏文件输入 ============== -->
   <input id="file-input" type="file" accept="image/*" multiple class="hidden">
+  <input id="excel-file-input" type="file" accept=".xlsx,.xls,.csv" class="hidden">
 
   <!-- ============== Toast ============== -->
   <div id="toast" class="toast hidden"></div>
