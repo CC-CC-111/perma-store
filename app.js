@@ -55,7 +55,9 @@ const btnToc = $("#btn-toc"),
 const tocEmpty = $("#toc-empty"),
       btnCloseToc = $("#btn-close-toc");
 const ownedListHome = $("#owned-list-home"),
-      stLock = $("#btn-site-lock");
+      stLock = $("#btn-site-lock"),
+      siteTokenBanner = $("#site-token-banner"),
+      btnConfigureToken = $("#btn-site-configure-token");
 const promptModal = $("#prompt-modal"),
       promptTitle = $("#prompt-title"),
       promptDesc = $("#prompt-desc");
@@ -63,6 +65,8 @@ const promptInput = $("#prompt-input"),
       btnConfirmPrompt = $("#btn-confirm-prompt"),
       btnCancelPrompt = $("#btn-cancel-prompt"),
       btnClosePrompt = $("#btn-close-prompt");
+const btnImportExcel = $("#btn-import-excel"),
+      excelFileInput = $("#excel-file-input");
 
 // ===== 状态 =====
 let site = null,
@@ -296,6 +300,16 @@ function showSettingsModal() {
   settingsModal.classList.remove("hidden");
   tokenInput.value = getToken();
   tokenStatus.textContent = "";
+}
+
+// ===== 站点页 Token 提示 =====
+function renderSiteTokenBanner() {
+  if (!siteTokenBanner) return;
+  if (hasToken()) {
+    siteTokenBanner.classList.add("hidden");
+  } else {
+    siteTokenBanner.classList.remove("hidden");
+  }
 }
 
 // ===== 渲染站点 =====
@@ -978,6 +992,99 @@ async function addSectionHandler() {
 btnAddSection?.addEventListener("click", addSectionHandler);
 btnAddSectionBottom?.addEventListener("click", addSectionHandler);
 
+// ===== 导入表格（Excel/CSV）=====
+function loadSheetJS() {
+  return new Promise((resolve, reject) => {
+    if (window.XLSX) return resolve();
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("加载表格解析库失败"));
+    document.head.appendChild(s);
+  });
+}
+
+btnImportExcel?.addEventListener("click", () => {
+  if (!siteId || !siteUnlocked) {
+    showToast("请先解锁站点");
+    return;
+  }
+  excelFileInput.click();
+});
+
+excelFileInput?.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  excelFileInput.value = "";
+
+  showToast("正在解析表格...");
+
+  try {
+    await loadSheetJS();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+    if (!rows.length) {
+      showToast("表格为空");
+      return;
+    }
+
+    // 第一行是表头：列0=类目，列1..N=各人设名称
+    const headers = rows[0].map(h => String(h).trim());
+    let importedSections = 0;
+    let importedBlocks = 0;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      const secName = String(row[0] || "").trim();
+      if (!secName) continue; // 跳过空行
+
+      // 查找或创建分区
+      let sec = site.sections.find(s => s.title === secName);
+      if (!sec) {
+        sec = {
+          id: uid(),
+          title: secName,
+          textZones: [],
+          imageZones: [],
+        };
+        site.sections.push(sec);
+        importedSections++;
+      }
+
+      // 遍历各列（跳过列0=类目名）
+      for (let c = 1; c < headers.length; c++) {
+        const zoneTitle = headers[c] || ("列" + c);
+        const content = String(row[c] || "").trim();
+        if (!content) continue;
+
+        // 查找或创建文字区
+        let zone = sec.textZones.find(z => z.title === zoneTitle);
+        if (!zone) {
+          zone = { id: uid(), title: zoneTitle, blocks: [] };
+          sec.textZones.push(zone);
+        }
+
+        // 检查是否已存在相同内容的 block
+        const isDup = zone.blocks.some(b => b.content === content);
+        if (!isDup) {
+          zone.blocks.push({ id: uid(), content, createdAt: Date.now() });
+          importedBlocks++;
+        }
+      }
+    }
+
+    renderSite();
+    scheduleSave();
+    showToast("导入完成：新增 " + importedSections + " 个分区，" + importedBlocks + " 条文字");
+  } catch (err) {
+    console.error("Excel import:", err);
+    showToast("导入失败：" + err.message);
+  }
+});
+
 // ===== 搜索/TOC 按钮 =====
 btnSearch?.addEventListener("click", toggleSearch);
 
@@ -1010,6 +1117,8 @@ tocModal?.addEventListener("click", (e) => {
 
 stLock?.addEventListener("click", handleLockAction);
 
+btnConfigureToken?.addEventListener("click", showSettingsModal);
+
 // ===== 设置弹窗 =====
 document
   .getElementById("btn-settings-home")
@@ -1035,6 +1144,7 @@ btnSaveToken?.addEventListener("click", () => {
   setToken(t);
   tokenStatus.textContent = "✅ Token 已保存";
   renderSetupBanner();
+  renderSiteTokenBanner();
   btnCreateSite.disabled = false;
   setTimeout(() => settingsModal.classList.add("hidden"), 600);
 });
@@ -1044,6 +1154,7 @@ btnClearToken?.addEventListener("click", () => {
   btnCreateSite.disabled = true;
   settingsModal.classList.add("hidden");
   renderSetupBanner();
+  renderSiteTokenBanner();
   showToast("已清除 Token");
 });
 
@@ -1061,6 +1172,7 @@ siteTitleInput?.addEventListener("change", function () {
 
   renderOwnedList();
   renderSetupBanner();
+  renderSiteTokenBanner();
 
   if (id) {
     pageHome.classList.add("hidden");
