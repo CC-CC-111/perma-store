@@ -305,7 +305,9 @@ function showSettingsModal() {
 // ===== 站点页 Token 提示 =====
 function renderSiteTokenBanner() {
   if (!siteTokenBanner) return;
-  if (hasToken()) {
+  // 只有站点已解锁（可编辑）且没有 Token 时才显示提示
+  // 纯查看不需要 Token，不需要提示
+  if (hasToken() || !siteId || !siteUnlocked) {
     siteTokenBanner.classList.add("hidden");
   } else {
     siteTokenBanner.classList.remove("hidden");
@@ -899,11 +901,12 @@ async function handleLockAction() {
 // ===== 分享 =====
 btnShare?.addEventListener("click", async () => {
   if (!siteId) return;
-  const link =
-    window.location.origin +
-    window.location.pathname.replace(/[?#].*$/, "") +
-    "?id=" +
-    siteId;
+  // 如果是 localhost，提示部署到公网
+  let base = window.location.origin + window.location.pathname.replace(/[?#].*$/, "");
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    showToast("⚠️ localhost 地址无法分享给其他设备，请部署到 GitHub Pages");
+  }
+  const link = base + "?id=" + siteId;
   shareLink.value = link;
   qrContainer.innerHTML = '<div class="qr-loading">加载二维码...</div>';
 
@@ -1180,6 +1183,7 @@ siteTitleInput?.addEventListener("change", function () {
   renderSiteTokenBanner();
 
   if (id) {
+    // 通过分享链接进入，隐藏首页提示
     pageHome.classList.add("hidden");
     pageSite.classList.remove("hidden");
     siteLoading.classList.remove("hidden");
