@@ -892,6 +892,7 @@ async function handleLockAction() {
     siteUnlocked = true;
     siteTitleInput.disabled = false;
     renderSite();
+    renderSiteTokenBanner();
     showToast("🔓 解锁成功");
   } else {
     showToast("❌ 密码错误");
@@ -1201,6 +1202,7 @@ siteTitleInput?.addEventListener("change", function () {
 
       siteLoading.classList.add("hidden");
       renderSite();
+      renderSiteTokenBanner();
       siteTitleInput.value = site.title;
       siteTitleInput.disabled = !siteUnlocked;
     } catch (e) {
